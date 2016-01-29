@@ -33,12 +33,14 @@ if os.path.isfile(readme):
 
 
 INSTALL_REQUIRES = [
-    'structlog>=15.3.0'
+    'structlog>=15.3.0',
+    'requests>=2.9.1',
 ]
 
 TESTS_REQUIRE = [
     'coverage>=4.0.3',
     'flake8>=2.5.1',
+    'mock>=1.3.0',
     'nose>=1.3.7',
     'pylint>=1.5.4',
 ]

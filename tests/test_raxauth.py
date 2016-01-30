@@ -31,4 +31,5 @@ class TestRaxAuth(unittest.TestCase):
 
     @mock.patch('fleece.raxauth.validate', side_effect=mock_validation)
     def test_unauthorized_empty(self, validation_function):
-        self.assertRaisesRegexp(HTTPError, '401: Unauthorized', authentication_test, token='bogus')
+        self.assertRaisesRegexp(HTTPError, '401: Unauthorized',
+                                authentication_test, token='bogus')

@@ -15,6 +15,7 @@ def authenticate():
         return wrapped
     return wrap
 
+
 def validate(token):
     """Validate token and return auth context."""
     endpoint = 'identity.api.rackspacecloud.com'

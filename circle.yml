@@ -1,0 +1,10 @@
+machine:
+  python:
+    version: 2.7.10
+
+test:
+  pre:
+    - pip install -U pip setuptools
+    - pip install -r requirements/tests.txt
+  override:
+    - tox

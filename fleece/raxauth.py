@@ -10,7 +10,9 @@ def authenticate():
             """Validate token and return auth context."""
             if 'token' not in kwargs:
                 raise HTTPError(status=401)
-            validate(kwargs['token'])
+            userinfo = validate(kwargs['token'])
+            if 'userinfo' in kwargs:
+                kwargs['userinfo'] = userinfo
             return fxn(*args, **kwargs)
         return wrapped
     return wrap
@@ -28,4 +30,4 @@ def validate(token):
 
     if not resp.status_code == 200:
         raise HTTPError(status=resp.status_code)
-    return
+    return resp.json()

@@ -1,2 +1,2 @@
 requests==2.9.1
-structlog==15.3.0
+structlog==16.0.0

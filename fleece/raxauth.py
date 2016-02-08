@@ -1,6 +1,6 @@
 import requests
 
-from httperror import HTTPError
+from fleece.httperror import HTTPError
 
 
 def authenticate():

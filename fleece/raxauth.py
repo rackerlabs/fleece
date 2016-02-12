@@ -8,7 +8,7 @@ def authenticate():
         """Return a decorated callable."""
         def wrapped(*args, **kwargs):
             """Validate token and return auth context."""
-            if 'token' not in kwargs:
+            if not kwargs.get('token'):
                 raise HTTPError(status=401)
             userinfo = validate(kwargs['token'])
             if 'userinfo' in kwargs:

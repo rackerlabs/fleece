@@ -5,6 +5,7 @@ import structlog
 
 LOG_FORMAT = '%(message)s'
 DEFAULT_STREAM = sys.stdout
+WRAPPED_DICT_CLASS = structlog.threadlocal.wrap_dict(dict)
 
 
 class logme(object):
@@ -25,6 +26,7 @@ class logme(object):
             self.logger.log(self.level, "Exiting %s", func.__name__,
                             response=response)
             return response
+
         return wrapped
 
 
@@ -48,9 +50,8 @@ def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT,
         return True
 
 
-def get_logger(level=logging.DEBUG, name=None, stream=DEFAULT_STREAM):
-    """Configure and return a logger with structlog and stdlib."""
-    wrap_dict_class = structlog.threadlocal.wrap_dict(dict)
+def _configure_logger():
+
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,
@@ -62,16 +63,31 @@ def get_logger(level=logging.DEBUG, name=None, stream=DEFAULT_STREAM):
             structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(sort_keys=True)
         ],
-        context_class=wrap_dict_class,
+        context_class=WRAPPED_DICT_CLASS,
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True)
+
+
+def get_logger(level=logging.DEBUG, name=None, stream=DEFAULT_STREAM,
+               clobber_root_handler=True):
+    """Configure and return a logger with structlog and stdlib."""
+    _configure_logger()
     log = structlog.get_logger(name)
-    if not _has_streamhandler(logging.getLogger(name),
-                              level=level, stream=stream):
-        streamhandler = logging.StreamHandler(stream)
-        streamhandler.setLevel(level)
-        streamhandler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
-        log.addHandler(streamhandler)
+    root_logger = logging.getLogger()
+    if clobber_root_handler:
+        for handler in root_logger.handlers:
+            handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
+    else:
+        if not _has_streamhandler(logging.getLogger(name),
+                                  level=level, stream=stream):
+            streamhandler = logging.StreamHandler(stream)
+            streamhandler.setLevel(level)
+            streamhandler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
+            log.addHandler(streamhandler)
+
     log.setLevel(level)
     return log
+
+
+getLogger = get_logger

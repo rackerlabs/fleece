@@ -78,13 +78,13 @@ def get_logger(level=logging.DEBUG, name=None, stream=DEFAULT_STREAM,
     if clobber_root_handler:
         for handler in root_logger.handlers:
             handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
-    else:
-        if not _has_streamhandler(logging.getLogger(name),
-                                  level=level, stream=stream):
-            streamhandler = logging.StreamHandler(stream)
-            streamhandler.setLevel(level)
-            streamhandler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
-            log.addHandler(streamhandler)
+
+    if not _has_streamhandler(logging.getLogger(name),
+                              level=level, stream=stream):
+        streamhandler = logging.StreamHandler(stream)
+        streamhandler.setLevel(level)
+        streamhandler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
+        log.addHandler(streamhandler)
 
     log.setLevel(level)
     return log

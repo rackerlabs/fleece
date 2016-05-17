@@ -29,5 +29,5 @@ def validate(token):
     resp = requests.get(auth_url, headers=headers)
 
     if not resp.status_code == 200:
-        raise HTTPError(status=resp.status_code)
+        raise HTTPError(status=401)
     return resp.json()

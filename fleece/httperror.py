@@ -26,8 +26,11 @@ class HTTPError(Exception):
                           ' unable to be followed due to semantic errors')
 
         self.status_code = status or self.default_status
+
+        # Don't explode if provided status_code isn't found.
+        _message = responses.get(self.status_code, [''])
         error_message = "%d: %s" % (self.status_code,
-                                    responses[self.status_code][0])
+                                    _message[0])
         if message:
             error_message = "%s - %s" % (error_message,
                                          message)

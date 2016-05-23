@@ -169,7 +169,7 @@ class LambdaEvent(object):
         self.requestor = requestor or LambdaEvent.requestor
 
     def _generate_body(self, merge, kwargs):
-        return dict_update(self.body or LambdaEvent.header, merge, kwargs)
+        return dict_update(self.body or LambdaEvent.body, merge, kwargs)
 
     def _generate_gateway(self, merge, kwargs):
         return dict_update(self.gateway or LambdaEvent.gateway, merge, kwargs)

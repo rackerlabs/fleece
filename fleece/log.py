@@ -23,8 +23,9 @@ class logme(object):
         def wrapped(*args, **kwargs):
             self.logger.log(self.level, "Entering %s", func.__name__)
             response = func(*args, **kwargs)
-            self.logger.log(self.level, "Exiting %s", func.__name__,
-                            response=response)
+            func_response_name = "{0}_response".format(func.__name__)
+            kwarg = {func_response_name: response}
+            self.logger.log(self.level, "Exiting %s", func.__name__, **kwarg)
             return response
 
         return wrapped

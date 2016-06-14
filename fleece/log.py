@@ -51,7 +51,10 @@ def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT,
         return True
 
 
-def _configure_logger():
+def _configure_logger(logger_factory=None):
+
+    if not logger_factory:
+        logger_factory = structlog.stdlib.LoggerFactory()
 
     structlog.configure(
         processors=[
@@ -65,15 +68,15 @@ def _configure_logger():
             structlog.processors.JSONRenderer(sort_keys=True)
         ],
         context_class=WRAPPED_DICT_CLASS,
-        logger_factory=structlog.stdlib.LoggerFactory(),
+        logger_factory=logger_factory,
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True)
 
 
 def get_logger(level=logging.DEBUG, name=None, stream=DEFAULT_STREAM,
-               clobber_root_handler=True):
+               clobber_root_handler=True, logger_factory=None):
     """Configure and return a logger with structlog and stdlib."""
-    _configure_logger()
+    _configure_logger(logger_factory=logger_factory)
     log = structlog.get_logger(name)
     root_logger = logging.getLogger()
     if clobber_root_handler:

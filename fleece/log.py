@@ -7,9 +7,11 @@ LOG_FORMAT = '%(message)s'
 DEFAULT_STREAM = sys.stdout
 WRAPPED_DICT_CLASS = structlog.threadlocal.wrap_dict(dict)
 
-def reset_handlers():
+
+def clobber_root_handlers():
     [logging.root.removeHandler(handler) for handler in
      logging.root.handlers[:]]
+
 
 class logme(object):
     """Log requests and responses"""
@@ -42,6 +44,11 @@ def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT,
     our specification is found. If other StreamHandlers are seen,
     we assume they were added for a different purpose.
     """
+    # Ensure we are talking the same type of logging levels
+    # if they passed in a string we need to convert it to a number
+    if isinstance(level, basestring):
+        level = logging.getLevelName(level)
+
     for handler in logger.handlers:
         if not isinstance(handler, logging.StreamHandler):
             continue
@@ -52,6 +59,7 @@ def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT,
         if not handler.formatter or handler.formatter._fmt != fmt:
             continue
         return True
+    return False
 
 
 def _configure_logger(logger_factory=None):
@@ -76,21 +84,33 @@ def _configure_logger(logger_factory=None):
         cache_logger_on_first_use=True)
 
 
+def setup_root_logger(level=logging.DEBUG, stream=DEFAULT_STREAM,
+                      logger_factory=None):
+    _configure_logger(logger_factory=logger_factory)
+    clobber_root_handlers()
+    root_logger = logging.root
+    stream_handler = logging.StreamHandler(stream)
+    stream_handler.setLevel(level)
+    stream_handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
+    root_logger.addHandler(stream_handler)
+
+
 def get_logger(name=None, level=logging.DEBUG, stream=DEFAULT_STREAM,
                clobber_root_handler=True, logger_factory=None):
     """Configure and return a logger with structlog and stdlib."""
     _configure_logger(logger_factory=logger_factory)
     log = structlog.get_logger(name)
     root_logger = logging.root
-    if not _has_streamhandler(root_logger, level=level, stream=stream):
-        streamhandler = logging.StreamHandler(stream)
-        streamhandler.setLevel(level)
-        streamhandler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
-        root_logger.addHandler(streamhandler)
-    else:
-        if clobber_root_handler:
-            for handler in root_logger.handlers:
-                handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
+    if log == root_logger:
+        if not _has_streamhandler(root_logger, level=level, stream=stream):
+            stream_handler = logging.StreamHandler(stream)
+            stream_handler.setLevel(level)
+            stream_handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
+            root_logger.addHandler(stream_handler)
+        else:
+            if clobber_root_handler:
+                for handler in root_logger.handlers:
+                    handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
 
     log.setLevel(level)
     return log

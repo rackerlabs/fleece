@@ -7,6 +7,9 @@ LOG_FORMAT = '%(message)s'
 DEFAULT_STREAM = sys.stdout
 WRAPPED_DICT_CLASS = structlog.threadlocal.wrap_dict(dict)
 
+def reset_handlers():
+    [logging.root.removeHandler(handler) for handler in
+     logging.root.handlers[:]]
 
 class logme(object):
     """Log requests and responses"""
@@ -73,22 +76,21 @@ def _configure_logger(logger_factory=None):
         cache_logger_on_first_use=True)
 
 
-def get_logger(level=logging.DEBUG, name=None, stream=DEFAULT_STREAM,
+def get_logger(name=None, level=logging.DEBUG, stream=DEFAULT_STREAM,
                clobber_root_handler=True, logger_factory=None):
     """Configure and return a logger with structlog and stdlib."""
     _configure_logger(logger_factory=logger_factory)
     log = structlog.get_logger(name)
-    root_logger = logging.getLogger()
-    if clobber_root_handler:
-        for handler in root_logger.handlers:
-            handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
-
-    if not _has_streamhandler(logging.getLogger(name),
-                              level=level, stream=stream):
+    root_logger = logging.root
+    if not _has_streamhandler(root_logger, level=level, stream=stream):
         streamhandler = logging.StreamHandler(stream)
         streamhandler.setLevel(level)
         streamhandler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
-        log.addHandler(streamhandler)
+        root_logger.addHandler(streamhandler)
+    else:
+        if clobber_root_handler:
+            for handler in root_logger.handlers:
+                handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
 
     log.setLevel(level)
     return log

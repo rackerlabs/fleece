@@ -95,7 +95,7 @@ def setup_root_logger(level=logging.DEBUG, stream=DEFAULT_STREAM,
     root_logger.addHandler(stream_handler)
 
 
-def get_logger(name=None, level=logging.DEBUG, stream=DEFAULT_STREAM,
+def get_logger(name=None, level=None, stream=DEFAULT_STREAM,
                clobber_root_handler=True, logger_factory=None):
     """Configure and return a logger with structlog and stdlib."""
     _configure_logger(logger_factory=logger_factory)
@@ -111,8 +111,8 @@ def get_logger(name=None, level=logging.DEBUG, stream=DEFAULT_STREAM,
             if clobber_root_handler:
                 for handler in root_logger.handlers:
                     handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
-
-    log.setLevel(level)
+    if level:
+        log.setLevel(level)
     return log
 
 

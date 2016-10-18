@@ -35,6 +35,7 @@ if os.path.isfile(readme):
 INSTALL_REQUIRES = [
     'structlog>=15.3.0',
     'requests>=2.9.1',
+    'boto3>=1.0.0'
 ]
 
 TESTS_REQUIRE = [

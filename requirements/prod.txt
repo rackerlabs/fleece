@@ -1,2 +1,3 @@
+boto3>=1.0.0
 requests==2.9.1
 structlog==16.0.0

@@ -33,7 +33,7 @@ via the `set_default_timeout()` function apply to all threads, and for that
 reason it is a good idea to only call this function during start up, before
 any additional threads are spawn.
 
-As an exmaple, the following code written against the original boto3 package
+As an example, the following code written against the original boto3 package
 uses the default 60 second socket timeouts:
 
     import boto3
@@ -47,3 +47,51 @@ fleece wrappers as follows:
     boto3.set_default_timeout(15)
     # ...
     lambda = boto3.client('lambda')
+
+## requests wrappers
+
+This project also includes a wrapper for the requests package. When using
+`fleece.requests`, convenient access to set timeouts and retries is provided.
+
+The high-level request functions such as `requests.get()` and
+`requests.post()` accept the following arguments:
+
+- `timeout`: a network timeout, or a tuple containing the connection and
+             read timeouts, in seconds. Note that this is functionality that
+             exists in the requests package.
+- `retries`: a retry mechanism to use with this request. This argument can be
+             of several types: if it is `None`, then the default retry
+             mechanism installed by the `set_default_retries` function is used;
+             if it is an integer, it is the number of retries to use; if it is
+             a dictionary, it must have the arguments to a urllib3 `Retry`
+             instance. Alternatively, this argument can be a Retry instance as
+             well.
+
+The `Session` class is also wrapped. A session instance from this module also
+accepts the two arguments above, and passes them on to any requests it issues.
+
+Finally, it is also possible to install global timeout and retry defaults that
+are used for any requests that don't specify them explicitly. This enables
+existing code to take advantage of retries and timeouts after changing the
+imports to point to this wrapped version of requests. Below is an example that
+sets global timeouts and retries:
+
+    from fleece import requests
+
+    # 15 second timeout
+    requests.set_default_timeout(15)
+
+    # 5 retries with exponential backoff, also retry 429 and 503 responses
+    requests.set_default_retries(total=5, backoff_factor=1,
+                                 status_forcelist=[429, 503])
+
+    # the defaults above apply to any regular requests, no need to make
+    # changes to existing code.
+    r = requests.get('https://...')
+
+    # a request can override the defaults if desired
+    r = requests.put('https://...', timeout=25, retries=2)
+
+    # sessions are also supported
+    with requests.Session() as session:
+        session.get('https://...')

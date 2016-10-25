@@ -71,6 +71,7 @@ package_attributes = {
     'name': about['__title__'],
     'packages': setuptools.find_packages(exclude=['tests']),
     'tests_require': TESTS_REQUIRE,
+    'test_suite': 'tests',
     'url': about['__url__'],
     'version': about['__version__'],
 }

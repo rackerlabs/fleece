@@ -1,5 +1,7 @@
 import logging
+from random import random
 import sys
+import time
 
 import structlog
 
@@ -34,6 +36,54 @@ class logme(object):
             return response
 
         return wrapped
+
+
+class RetryHandler(logging.Handler):
+    """A logging handler that wraps another handler and retries its emit
+    method if it fails. Useful for handlers that connect to an external
+    service over the network, such as CloudWatch.
+
+    The wait between retries uses an exponential backoff algorithm with full
+    jitter, as described in
+    https://www.awsarchitectureblog.com/2015/03/backoff.html.
+
+    :param handler the handler to wrap with retries.
+    :param max_retries the maximum number of retries before giving up. The
+                       default is 5 retries.
+    :param backoff_base the sleep time before the first retry. This time
+                        doubles after each retry. The default is 0.1s.
+    :param backoff_cap the max sleep time before a retry. The default is 1s.
+    :param ignore_errors if set to False, when all retries are exhausted, the
+                         exception raised by the original log call is
+                         re-raised. If set to True, the error is silently
+                         ignored. The default is True.
+    """
+    def __init__(self, handler, max_retries=5, backoff_base=0.1,
+                 backoff_cap=1, ignore_errors=True):
+        super(RetryHandler, self).__init__()
+        self.handler = handler
+        self.max_retries = max_retries
+        self.backoff_base = backoff_base
+        self.backoff_cap = backoff_cap
+        self.ignore_errors = ignore_errors
+
+    def emit(self, record):
+        try:
+            return self.handler.emit(record)
+        except Exception as e:
+            exc = e
+
+        sleep = self.backoff_base
+        for i in range(self.max_retries):
+            time.sleep(sleep * random())
+            try:
+                return self.handler.emit(record)
+            except:
+                pass
+            sleep = min(self.backoff_cap, sleep * 2)
+
+        if not self.ignore_errors:
+            raise exc
 
 
 def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT,

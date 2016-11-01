@@ -6,7 +6,7 @@ machine:
 dependencies:
   override:
     - pip install tox tox-pyenv
-    - pyenv local 2.7.9 3.4.3 
+    - pyenv local 2.7.9 3.4.3
 
 test:
   pre:

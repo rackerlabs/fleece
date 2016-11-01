@@ -15,6 +15,39 @@ use`fleece.log.get_logger` or `fleece.log.getLogger`
 This should ensure that all handlers on the root logger are cleaned up and one
 with appropriate stream handlers is in place.
 
+### Retry logging calls
+
+A retry wrapper for logging handlers that occasionally fail is also provided.
+This wrapper can be useful in preventing crashes when logging calls to external
+services such as CloudWatch fail.
+
+For example, consider the following handler for CloudWatch using watchtower:
+
+```python
+logger.addHandler(
+    watchtower.CloudWatchLogHandler(log_group='WORKER-POLL',
+                                    stream_name=str(uuid.uuid4()),
+                                    use_queues=False))
+```
+
+If the CloudWatch service is down, or rate limits the client, that will cause
+logging calls to raise an exception, which may interrupt the script. To avoid
+that, the watchtower handler can be wrapped in a `RetryHandler` as follows:
+
+```python
+logger.addHandler(
+    fleece.log.RetryHandler(
+        watchtower.CloudWatchLogHandler(log_group='WORKER-POLL',
+                                        stream_name=str(uuid.uuid4()),
+                                        use_queues=False)))
+```
+
+In the above example, logging calls that fail will be retried up to 5 times,
+using an exponential backoff algorithm to increasingly space out retries. If
+all retries fail, then the logging call will, by default, give up silently and
+return, allowing the program to continue. See the documentation for the
+`RetryHandler` class for information on how to customize the retry strategy.
+
 ## boto3 wrappers
 
 This project includes `fleece.boto3.client()` and `fleece.boto3.resource()`
@@ -26,7 +59,7 @@ are accepted to set these timeouts:
 - `read_timeout`: timeout for socket read operations in seconds.
 - `timeout`: convenience timeout that sets both of the above to the same value.
 
-Also for convenience, timeouts can be set globally by calling 
+Also for convenience, timeouts can be set globally by calling
 `fleece.boto3.set_default_timeout()` at startup. Globally set timeouts are
 then applied to all clients, unless explicitly overriden. Default timeouts set
 via the `set_default_timeout()` function apply to all threads, and for that

@@ -1,4 +1,8 @@
+from __future__ import absolute_import
+
 import datetime
+
+from requests.structures import CaseInsensitiveDict
 
 
 class Hasher(dict):
@@ -31,7 +35,8 @@ def format_event(event, context):
         'body': hashed_event['parameters']['request']['body'],
         'path': hashed_event['parameters']['request']['path'],
         'querystring': hashed_event['parameters']['request']['querystring'],
-        'header': hashed_event['parameters']['request']['header'],
+        'header': CaseInsensitiveDict(
+            hashed_event['parameters']['request']['header']),
         'gateway': hashed_event['parameters']['gateway'],
     }
 

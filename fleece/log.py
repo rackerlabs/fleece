@@ -112,10 +112,12 @@ def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT,
     return False
 
 
-def _configure_logger(logger_factory=None):
+def _configure_logger(logger_factory=None, wrapper_class=None):
 
     if not logger_factory:
         logger_factory = structlog.stdlib.LoggerFactory()
+    if not wrapper_class:
+        wrapper_class = structlog.stdlib.BoundLogger
 
     structlog.configure(
         processors=[
@@ -130,7 +132,7 @@ def _configure_logger(logger_factory=None):
         ],
         context_class=WRAPPED_DICT_CLASS,
         logger_factory=logger_factory,
-        wrapper_class=structlog.stdlib.BoundLogger,
+        wrapper_class=wrapper_class,
         cache_logger_on_first_use=True)
 
 
@@ -146,9 +148,12 @@ def setup_root_logger(level=logging.DEBUG, stream=DEFAULT_STREAM,
 
 
 def get_logger(name=None, level=None, stream=DEFAULT_STREAM,
-               clobber_root_handler=True, logger_factory=None):
+               clobber_root_handler=True, logger_factory=None,
+               wrapper_class=None):
     """Configure and return a logger with structlog and stdlib."""
-    _configure_logger(logger_factory=logger_factory)
+    _configure_logger(
+        logger_factory=logger_factory,
+        wrapper_class=wrapper_class)
     log = structlog.get_logger(name)
     root_logger = logging.root
     if log == root_logger:

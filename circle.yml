@@ -10,7 +10,10 @@ dependencies:
 
 test:
   pre:
-    - pip install -U pip setuptools
+    # These packages are required by setuptools to install cleanly
+    - pip install -U appdirs packaging six
+    # Upgrade packaging tools, virtualenv is required by tox
+    - pip install -U pip setuptools virtualenv
     - pip install -r requirements/tests.txt
   override:
     - tox

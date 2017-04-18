@@ -75,13 +75,16 @@ def profile_handler(sample=PROFILE_SAMPLE, stats_filter=None,
 
                 profile = Profile()
                 profile.enable()
-                return_value = func(event, context, *args, **kwargs)
-                profile.disable()
+                try:
+                    return_value = func(event, context, *args, **kwargs)
+                finally:
+                    profile.disable()
 
-                stream = StringIO()
-                stats = Stats(profile, stream=stream)
-                stats.sort_stats('cumulative').print_stats(*print_stats_filter)
-                process_profiling_data(stream, logger, event)
+                    stream = StringIO()
+                    stats = Stats(profile, stream=stream)
+                    stats.sort_stats('cumulative')
+                    stats.print_stats(*print_stats_filter)
+                    process_profiling_data(stream, logger, event)
             else:
                 logger.info('Skipping profiling')
                 return_value = func(event, context, *args, **kwargs)

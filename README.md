@@ -128,3 +128,47 @@ sets global timeouts and retries:
     # sessions are also supported
     with requests.Session() as session:
         session.get('https://...')
+
+## X-Ray integration
+
+This project also bridges the gap of missing Python support in the
+[AWS X-Ray](https://aws.amazon.com/xray/)
+[Lambda integration](http://docs.aws.amazon.com/xray/latest/devguide/xray-services-lambda.html).
+
+After enabling active tracing under Advanced settings on the Configuration tab
+of your Lambda function in the AWS Console (or using the
+[`update_function_configuration` API call](http://boto3.readthedocs.io/en/latest/reference/services/lambda.html#Lambda.Client.update_function_configuration)),
+you can mark any function or method for tracing by using the
+`@trace_xray_subsegment` decorator. You can apply the decorator to any number of
+functions and methods, the resulting trace will be properly nested.
+
+This module also provides wrappers for `boto` and `requests` so that any AWS API
+call, or HTTP request will be automatically traced by X-Ray, but you have to
+explicitly allow this behavior by calling `monkey_patch_botocore_for_xray`
+and/or `monkey_patch_requests_for_xray`. The best place to do this would be the
+main handler module where the Lambda entry point is defined.
+
+A quick example (`handler.py`):
+
+```python
+from fleece import boto3
+from fleece.xray import (monkey_patch_botocore_for_xray,
+                         trace_xray_subsegment)
+
+monkey_patch_botocore_for_xray()
+
+
+@trace_xray_subsegment
+def lambda_handler(event, context):
+    return get_user()
+
+
+def get_user():
+    # This function doesn't have to be decorated, because the API call to IAM
+    # will be traced thanks to the monkey-patching.
+    iam = boto3.client('iam')
+    return iam.get_user()
+```
+
+**Note:** the monkey-patched tracing will also work with the wrappers described
+above.

@@ -135,12 +135,21 @@ This project also bridges the gap of missing Python support in the
 [AWS X-Ray](https://aws.amazon.com/xray/)
 [Lambda integration](http://docs.aws.amazon.com/xray/latest/devguide/xray-services-lambda.html).
 
-After enabling active tracing under Advanced settings on the Configuration tab
+### Prerequisites
+
+ 1. Make sure you add the following permissions to the Lambda execution role
+of your function: `xray:PutTraceSegments` and `xray:PutTelemetryRecords`.
+ 2. Enable active tracing under Advanced settings on the Configuration tab
 of your Lambda function in the AWS Console (or using the
-[`update_function_configuration` API call](http://boto3.readthedocs.io/en/latest/reference/services/lambda.html#Lambda.Client.update_function_configuration)),
-you can mark any function or method for tracing by using the
+[`update_function_configuration` API call](http://boto3.readthedocs.io/en/latest/reference/services/lambda.html#Lambda.Client.update_function_configuration)).
+
+### Features
+
+You can mark any function or method for tracing by using the
 `@trace_xray_subsegment` decorator. You can apply the decorator to any number of
-functions and methods, the resulting trace will be properly nested.
+functions and methods, the resulting trace will be properly nested. You have to
+decorate all the methods you want traced (e.g. if you decorate your handler
+function only, no other functions will be traced that it calls).
 
 This module also provides wrappers for `boto` and `requests` so that any AWS API
 call, or HTTP request will be automatically traced by X-Ray, but you have to
@@ -148,7 +157,7 @@ explicitly allow this behavior by calling `monkey_patch_botocore_for_xray`
 and/or `monkey_patch_requests_for_xray`. The best place to do this would be the
 main handler module where the Lambda entry point is defined.
 
-A quick example (`handler.py`):
+### A quick example (`handler.py`)
 
 ```python
 from fleece import boto3

@@ -80,14 +80,16 @@ def get_trace_id():
         'parent_id': None,
         'sampled': False,
     }
-    for part in trace_id_parts:
-        name, value = part.split('=')
-        if name == 'Root':
-            trace_kwargs['trace_id'] = value
-        elif name == 'Parent':
-            trace_kwargs['parent_id'] = value
-        elif name == 'Sampled':
-            trace_kwargs['sampled'] = bool(int(value))
+    if trace_id_parts[0] != '':
+        # This means the trace ID environment variable is not empty
+        for part in trace_id_parts:
+            name, value = part.split('=')
+            if name == 'Root':
+                trace_kwargs['trace_id'] = value
+            elif name == 'Parent':
+                trace_kwargs['parent_id'] = value
+            elif name == 'Sampled':
+                trace_kwargs['sampled'] = bool(int(value))
 
     return XRayTraceID(**trace_kwargs)
 

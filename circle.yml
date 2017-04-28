@@ -2,11 +2,10 @@ machine:
   python:
     version: 2.7.10
 
-
 dependencies:
   override:
     - pip install tox tox-pyenv
-    - pyenv local 2.7.9 3.4.3
+    - pyenv local 2.7.12 3.6.1
 
 test:
   pre:

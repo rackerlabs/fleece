@@ -350,6 +350,8 @@ def trace_xray_subsegment(skip_args=False):
             metadata_extractor=metadata_extractor,
         )
 
+    return wrapper
+
 
 def get_service_name(wrapped, instance, args, kwargs):
     """Return the AWS service name the client is communicating with."""

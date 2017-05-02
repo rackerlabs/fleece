@@ -310,6 +310,11 @@ def generic_xray_wrapper(wrapped, instance, args, kwargs, name, namespace,
     return return_value
 
 
+def noop_function_metadata(wrapped, instance, args, kwargs, return_value):
+    """Make sure that metadata is not changed."""
+    return {}
+
+
 def extract_function_metadata(wrapped, instance, args, kwargs, return_value):
     """Stash the `args` and `kwargs` into the metadata of the subsegment."""
     LOGGER.debug(
@@ -325,15 +330,25 @@ def extract_function_metadata(wrapped, instance, args, kwargs, return_value):
     }
 
 
-@wrapt.decorator
-def trace_xray_subsegment(wrapped, instance, args, kwargs):
-    """Can be applied to any function or method to be traced by X-Ray."""
-    return generic_xray_wrapper(
-        wrapped, instance, args, kwargs,
-        name=get_function_name,
-        namespace='local',
-        metadata_extractor=extract_function_metadata,
-    )
+def trace_xray_subsegment(skip_args=False):
+    """Can be applied to any function or method to be traced by X-Ray.
+
+    If `skip_args` is True, the arguments of the function won't be sent to
+    X-Ray.
+    """
+    @wrapt.decorator
+    def wrapper(wrapped, instance, args, kwargs):
+        metadata_extractor = (
+            noop_function_metadata
+            if skip_args
+            else extract_function_metadata
+        )
+        return generic_xray_wrapper(
+            wrapped, instance, args, kwargs,
+            name=get_function_name,
+            namespace='local',
+            metadata_extractor=metadata_extractor,
+        )
 
 
 def get_service_name(wrapped, instance, args, kwargs):

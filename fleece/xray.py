@@ -355,6 +355,8 @@ def trace_xray_subsegment(skip_args=False):
 
 def get_service_name(wrapped, instance, args, kwargs):
     """Return the AWS service name the client is communicating with."""
+    if 'serviceAbbreviation' not in instance._service_model.metadata:
+        return instance._service_model.metadata['endpointPrefix']
     return instance._service_model.metadata['serviceAbbreviation']
 
 

@@ -69,17 +69,21 @@ any additional threads are spawn.
 As an example, the following code written against the original boto3 package
 uses the default 60 second socket timeouts:
 
-    import boto3
-    # ...
-    lambda = boto3.client('lambda')
+```python
+import boto3
+# ...
+lambda = boto3.client('lambda')
+```
 
 If you wanted to use 15 second timeouts instead, you can simply switch to the
 fleece wrappers as follows:
 
-    from fleece import boto3
-    boto3.set_default_timeout(15)
-    # ...
-    lambda = boto3.client('lambda')
+```python
+from fleece import boto3
+boto3.set_default_timeout(15)
+# ...
+lambda = boto3.client('lambda')
+```
 
 ## requests wrappers
 
@@ -109,25 +113,27 @@ existing code to take advantage of retries and timeouts after changing the
 imports to point to this wrapped version of requests. Below is an example that
 sets global timeouts and retries:
 
-    from fleece import requests
+```python
+from fleece import requests
 
-    # 15 second timeout
-    requests.set_default_timeout(15)
+# 15 second timeout
+requests.set_default_timeout(15)
 
-    # 5 retries with exponential backoff, also retry 429 and 503 responses
-    requests.set_default_retries(total=5, backoff_factor=1,
-                                 status_forcelist=[429, 503])
+# 5 retries with exponential backoff, also retry 429 and 503 responses
+requests.set_default_retries(total=5, backoff_factor=1,
+                             status_forcelist=[429, 503])
 
-    # the defaults above apply to any regular requests, no need to make
-    # changes to existing code.
-    r = requests.get('https://...')
+# the defaults above apply to any regular requests, no need to make
+# changes to existing code.
+r = requests.get('https://...')
 
-    # a request can override the defaults if desired
-    r = requests.put('https://...', timeout=25, retries=2)
+# a request can override the defaults if desired
+r = requests.put('https://...', timeout=25, retries=2)
 
-    # sessions are also supported
-    with requests.Session() as session:
-        session.get('https://...')
+# sessions are also supported
+with requests.Session() as session:
+    session.get('https://...')
+```
 
 ## X-Ray integration
 

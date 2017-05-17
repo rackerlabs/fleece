@@ -55,8 +55,9 @@ CLASSIFIERS = [
     'Topic :: Software Development',
     'Programming Language :: Python',
     'Programming Language :: Python :: 2',
-    'Programming Language :: Python :: 2.6',
-    'Programming Language :: Python :: 2.7'
+    'Programming Language :: Python :: 2.7',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.6',
 ]
 
 
@@ -66,7 +67,7 @@ package_attributes = {
     'classifiers': CLASSIFIERS,
     'description': about['__summary__'],
     'install_requires': INSTALL_REQUIRES,
-    'keywords': ' '.join(about['__keywords__']),
+    'keywords': about['__keywords__'],
     'license': about['__license__'],
     'long_description': LONG_DESCRIPTION,
     'name': about['__title__'],

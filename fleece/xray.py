@@ -112,7 +112,7 @@ def send_data_on_udp(ip_address, port, data):
     """Helper function to send a string over UDP to a specific IP/port."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        sock.sendto(data, (ip_address, port))
+        sock.sendto(data.encode('utf-8'), (ip_address, port))
     except:
         LOGGER.exception('Failed to send trace to X-Ray Daemon')
     finally:
@@ -127,9 +127,13 @@ def send_segment_document_to_xray_daemon(segment_document):
         LOGGER.error('X-Ray Daemon not running, skipping send')
         return
 
-    message = '{header}\n{document}'.format(
+    message = u'{header}\n{document}'.format(
         header=json.dumps(XRAY_DAEMON_HEADER),
-        document=json.dumps(segment_document, cls=StringJSONEncoder),
+        document=json.dumps(
+            segment_document,
+            ensure_ascii=False,
+            cls=StringJSONEncoder,
+        ),
     )
 
     send_data_on_udp(

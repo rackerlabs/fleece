@@ -173,7 +173,7 @@ from fleece.xray import (monkey_patch_botocore_for_xray,
 monkey_patch_botocore_for_xray()
 
 
-@trace_xray_subsegment
+@trace_xray_subsegment()
 def lambda_handler(event, context):
     return get_user()
 

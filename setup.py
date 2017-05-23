@@ -37,6 +37,9 @@ INSTALL_REQUIRES = [
     'requests>=2.9.1',
     'boto3>=1.0.0',
     'wrapt>=1.10.10',
+    'connexion==1.1.9',
+    'Flask==0.12.2',
+    'Werkzeug==0.12.2',
 ]
 
 TESTS_REQUIRE = [

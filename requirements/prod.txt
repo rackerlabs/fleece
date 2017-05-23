@@ -1,4 +1,7 @@
 boto3>=1.0.0
+connexion==1.1.9
+Flask==0.12.2
 requests==2.9.1
 structlog==16.0.0
+Werkzeug==0.12.2
 wrapt==1.10.10

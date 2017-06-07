@@ -2,6 +2,8 @@ import requests
 
 from fleece.httperror import HTTPError
 
+TOKEN_URL_FMT = 'https://identity.api.rackspacecloud.com/v2.0/tokens/{token}'
+
 
 def authenticate():
     def wrap(fxn):
@@ -20,13 +22,12 @@ def authenticate():
 
 def validate(token):
     """Validate token and return auth context."""
-    endpoint = 'identity.api.rackspacecloud.com'
-    auth_url = "https://%s/v2.0/tokens/%s" % (endpoint, token)
+    token_url = TOKEN_URL_FMT.format(token=token)
     headers = {
         'x-auth-token': token,
         'accept': 'application/json',
     }
-    resp = requests.get(auth_url, headers=headers)
+    resp = requests.get(token_url, headers=headers)
 
     if not resp.status_code == 200:
         raise HTTPError(status=401)

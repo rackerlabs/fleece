@@ -14,11 +14,114 @@ except ImportError:
     from urllib.parse import urlencode
 
 import connexion
+import six
 import werkzeug.wrappers
 
 from fleece import httperror
+import fleece.log
 
 _app_cache = {}
+
+
+class FleeceApp(connexion.App):
+    """Wrapper around `connexion.App` with added helpers for Lambda."""
+
+    def __init__(self, *args, **kwargs):
+        """Create a FleeceApp.
+
+        Parameters are identical to a `connexion.App, with the exception of the
+        below keyword argument.
+
+        :param logging.Logger logger:
+            A Logger instance returned by `fleece.log.get_logger()` to be used
+            for capturing details about errors.
+
+            If `logger` is None, a default logger object will be created.
+        """
+        super(FleeceApp, self).__init__(*args, **kwargs)
+
+        logger = kwargs.pop('logger', None)
+        if logger is None:
+            self.logger = fleece.log.get_logger(__name__)
+        else:
+            self.logger = logger
+
+    def call_api(self, event):
+        """Make a request against the API defined by this app.
+
+        Return any result from the API call as a JSON object/dict. In the event
+        of a client or server error response from the API endpoint handler (4xx
+        or 5xx), raise a :class:`fleece.httperror.HTTPError` containing some
+        context about the error. Any unexpected exception encountered while
+        executing an API endpoint handler will be appropriately raised as a
+        generic 500 error with no error context (in order to not expose too
+        much of the internals of the application).
+
+        :param dict event:
+            Dictionary containing the entire request payload passed to the
+            Lambda function handler.
+        :returns:
+            JSON object (as a `list` or `dict`) containing the response data
+            from the API endpoint.
+        :raises:
+            :class:`fleece.httperror.HTTPError` on 4xx or 5xx responses from
+            the API endpoint handler, or a 500 response on an unexpected
+            failure (due to a bug in handler code, for example).
+        """
+        try:
+            environ = _build_wsgi_env(event, self.import_name)
+            response = werkzeug.wrappers.Response.from_app(self, environ)
+            response_dict = json.loads(response.get_data())
+
+            if 400 <= response.status_code < 500:
+                if ('error' in response_dict and
+                        'message' in response_dict['error']):
+                    # FIXME(larsbutler): If 'error' is not a collection
+                    # (list/dict) and is a scalar such as an int, the check
+                    # `message in response_dict['error']` will blow up and
+                    # result in a generic 500 error. This check assumes too
+                    # much about the format of error responses given by the
+                    # handler. It might be good to allow this handling to
+                    # support custom structures.
+                    msg = response_dict['error']['message']
+                else:
+                    # Likely this is a generated 400 response from Connexion.
+                    # Reveal the 'detail' of the message to the user.
+                    # NOTE(larsbutler): If your API handler explicitly returns
+                    # a 'detail' key in in the response, be aware that this
+                    # will be exposed to the client.
+                    msg = response_dict['detail']
+                # FIXME(larsbutler): The logic above still assumes a lot about
+                # the API response. That's not great. It would be nice to make
+                # this more flexible and explicit.
+                self.logger.error(
+                    'Raising 4xx error',
+                    http_status=response.status_code,
+                    message=msg,
+                )
+                raise httperror.HTTPError(
+                    status=response.status_code,
+                    message=msg,
+                )
+            elif 500 <= response.status_code < 600:
+                # This case is generally enountered if the API endpoint handler
+                # code does not conform to the contract dictated by the Swagger
+                # specification. This case will also trigger if the handler
+                # code explicitly returns a 5xx error.
+                self.logger.error(
+                    'Raising 5xx error',
+                    response=response_dict,
+                    http_status=response.status_code,
+                )
+                raise httperror.HTTPError(status=response.status_code)
+            else:
+                return response_dict
+        except httperror.HTTPError:
+            self.logger.exception('HTTPError')
+            raise
+        except Exception:
+            self.logger.exception('Unhandled exception')
+            raise httperror.HTTPError(status=500)
 
 
 def _build_wsgi_env(event, app_name):
@@ -33,7 +136,7 @@ def _build_wsgi_env(event, app_name):
     request = event['parameters']['request']
     ctx = event['rawContext']
     headers = request['header']
-    body = json.dumps(request['body'])
+    body = six.text_type(json.dumps(request['body']))
 
     # Render the path correctly so connexion/flask will pass the path params to
     # the handler function correctly.
@@ -77,7 +180,7 @@ def get_connexion_app(app_name, app_swagger_path, strict_validation=True,
     # doing it on every single request.
     if app_name not in _app_cache or not cache_app:
         full_path_to_swagger_yaml = os.path.abspath(app_swagger_path)
-        app = connexion.App(
+        app = FleeceApp(
             app_name,
             specification_dir=os.path.dirname(full_path_to_swagger_yaml),
         )
@@ -114,49 +217,11 @@ def call_api(event, app_name, app_swagger_path, logger, strict_validation=True,
         instance. It's on by default, because it provides a significant
         performance improvement in the Lambda runtime environment.
     """
-    try:
-        app = get_connexion_app(
-            app_name=app_name,
-            app_swagger_path=app_swagger_path,
-            strict_validation=strict_validation,
-            validate_responses=validate_responses,
-            cache_app=cache_app,
-        )
-        environ = _build_wsgi_env(event, app_name)
-        response = werkzeug.wrappers.Response.from_app(app, environ)
-        response_dict = json.loads(response.get_data())
-
-        if 400 <= response.status_code < 500:
-            if ('error' in response_dict and
-                    'message' in response_dict['error']):
-                # Get the message from an error given by one of the endpoint
-                # handlers.
-                msg = response_dict['error']['message']
-            else:
-                # Get the message from the `connexion` plumbing, where the
-                # message format is different.
-                msg = response_dict['detail']
-            logger.error(
-                'Raising 4xx error',
-                http_status=response.status_code,
-                message=msg,
-            )
-            raise httperror.HTTPError(
-                status=response.status_code,
-                message=msg,
-            )
-        elif 500 <= response.status_code < 600:
-            logger.error(
-                'Raising 5xx error',
-                response=response_dict,
-                http_status=response.status_code,
-            )
-            raise httperror.HTTPError(status=response.status_code)
-        else:
-            return response_dict
-    except httperror.HTTPError:
-        logger.exception('HTTPError')
-        raise
-    except Exception:
-        logger.exception('Unhandled exception')
-        raise httperror.HTTPError(status=500)
+    app = get_connexion_app(
+        app_name=app_name,
+        app_swagger_path=app_swagger_path,
+        strict_validation=strict_validation,
+        validate_responses=validate_responses,
+        cache_app=cache_app,
+    )
+    return app.call_api(event)

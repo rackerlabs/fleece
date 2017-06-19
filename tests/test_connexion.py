@@ -3,8 +3,14 @@ import tempfile
 import unittest
 
 import flask
+import six
 
 import fleece.connexion
+
+if six.PY2:
+    import mock
+else:
+    from unittest import mock
 
 # NOTE(larsbutler): The one thing that is not shown here are the
 # x-amazon-apigateway-integration response templates which API Gateway can use
@@ -183,8 +189,10 @@ class TestFleeceApp(unittest.TestCase):
         with open(self.swagger_path, 'w') as fp:
             fp.write(TEST_SWAGGER)
 
+        self.logger = mock.Mock()
+
         self.app = fleece.connexion.get_connexion_app(
-            'myapp', self.swagger_path, cache_app=False
+            'myapp', self.swagger_path, cache_app=False, logger=self.logger,
         )
 
     def tearDown(self):
@@ -316,6 +324,56 @@ class TestFleeceApp(unittest.TestCase):
         self.assertEqual(
             '500: Internal Server Error',
             str(ar.exception)
+        )
+
+    def test_get_user_500_response_contract_violation(self):
+        event = {
+            'parameters': {
+                'gateway': {'resource-path': '/v1/users/{user_id}'},
+                'request': {
+                    'header': {
+                        'X-Forwarded-Port': '443',
+                        'X-Forwarded-Proto': 'https',
+                        'Host': 'myapp.com',
+                    },
+                    'body': {},
+                    'path': {'user_id': '789'},
+                    'querystring': []
+                },
+            },
+            'rawContext': {
+                'identity': {
+                    'sourceIp': '1.2.3.4',
+                },
+                'httpMethod': 'GET',
+            },
+        }
+        with self.assertRaises(fleece.httperror.HTTPError) as ar:
+            self.app.call_api(event)
+        self.assertEqual(500, ar.exception.status_code)
+        self.assertEqual(
+            '500: Internal Server Error',
+            str(ar.exception)
+        )
+
+        # Since this error was triggered because of an API contract voilation,
+        # check that it is explicitly logged:
+        expected_log_error_detail = """\
+u'789' is not of type 'integer'
+
+Failed validating 'type' in schema['properties']['user_id']:
+    {'description': "ID of the user's account", 'type': 'integer'}
+
+On instance['user_id']:
+    u'789'"""
+        if six.PY3:
+            expected_log_error_detail = expected_log_error_detail.replace(
+                "u'", "'"
+            )
+        self.assertEqual(1, self.logger.error.call_count)
+        self.logger.error.assert_called_with(
+            fleece.connexion.RESPONSE_CONTRACT_VIOLATION,
+            detail=expected_log_error_detail,
         )
 
     def test_create_user_201_response(self):

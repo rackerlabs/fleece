@@ -38,13 +38,13 @@ class FleeceApp(connexion.App):
 
             If `logger` is None, a default logger object will be created.
         """
-        super(FleeceApp, self).__init__(*args, **kwargs)
-
         logger = kwargs.pop('logger', None)
         if logger is None:
             self.logger = fleece.log.get_logger(__name__)
         else:
             self.logger = logger
+
+        super(FleeceApp, self).__init__(*args, **kwargs)
 
     def call_api(self, event):
         """Make a request against the API defined by this app.

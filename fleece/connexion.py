@@ -174,7 +174,7 @@ def _build_wsgi_env(event, app_name):
 
 
 def get_connexion_app(app_name, app_swagger_path, strict_validation=True,
-                      validate_responses=True, cache_app=True):
+                      validate_responses=True, cache_app=True, logger=None):
     # Optionally cache application instances, because it takes a significant
     # amount of time to process the Swagger definition, and we shouldn't be
     # doing it on every single request.
@@ -183,6 +183,7 @@ def get_connexion_app(app_name, app_swagger_path, strict_validation=True,
         app = FleeceApp(
             app_name,
             specification_dir=os.path.dirname(full_path_to_swagger_yaml),
+            logger=logger,
         )
         app.add_api(
             os.path.basename(full_path_to_swagger_yaml),

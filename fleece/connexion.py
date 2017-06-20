@@ -48,6 +48,17 @@ class FleeceApp(connexion.App):
 
         super(FleeceApp, self).__init__(*args, **kwargs)
 
+        # Capture and log any unexpected exceptions raise by handler code:
+        def error_handler(exception):
+            self.logger.exception(exception)
+            # A `None` return value will not modify the response.
+            # It's possible to return new types of responses from an error
+            # handler.
+            # To do so, simply return a new `werkzeug.wrappers.Response`
+            # object.
+
+        self.add_error_handler(Exception, error_handler)
+
     def call_api(self, event):
         """Make a request against the API defined by this app.
 

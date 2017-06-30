@@ -22,6 +22,8 @@ import fleece.log
 
 _app_cache = {}
 
+RESPONSE_CONTRACT_VIOLATION = 'Response body does not conform to specification'
+
 
 class FleeceApp(connexion.App):
     """Wrapper around `connexion.App` with added helpers for Lambda."""
@@ -38,13 +40,24 @@ class FleeceApp(connexion.App):
 
             If `logger` is None, a default logger object will be created.
         """
-        super(FleeceApp, self).__init__(*args, **kwargs)
-
         logger = kwargs.pop('logger', None)
         if logger is None:
             self.logger = fleece.log.get_logger(__name__)
         else:
             self.logger = logger
+
+        super(FleeceApp, self).__init__(*args, **kwargs)
+
+        # Capture and log any unexpected exceptions raise by handler code:
+        def error_handler(exception):
+            self.logger.exception(exception)
+            # A `None` return value will not modify the response.
+            # It's possible to return new types of responses from an error
+            # handler.
+            # To do so, simply return a new `werkzeug.wrappers.Response`
+            # object.
+
+        self.add_error_handler(Exception, error_handler)
 
     def call_api(self, event):
         """Make a request against the API defined by this app.
@@ -84,13 +97,16 @@ class FleeceApp(connexion.App):
                     # handler. It might be good to allow this handling to
                     # support custom structures.
                     msg = response_dict['error']['message']
-                else:
+                elif 'detail' in response_dict:
                     # Likely this is a generated 400 response from Connexion.
                     # Reveal the 'detail' of the message to the user.
                     # NOTE(larsbutler): If your API handler explicitly returns
                     # a 'detail' key in in the response, be aware that this
                     # will be exposed to the client.
                     msg = response_dict['detail']
+                else:
+                    # Respond with a generic client error.
+                    msg = 'Client Error'
                 # FIXME(larsbutler): The logic above still assumes a lot about
                 # the API response. That's not great. It would be nice to make
                 # this more flexible and explicit.
@@ -104,15 +120,24 @@ class FleeceApp(connexion.App):
                     message=msg,
                 )
             elif 500 <= response.status_code < 600:
-                # This case is generally enountered if the API endpoint handler
-                # code does not conform to the contract dictated by the Swagger
-                # specification. This case will also trigger if the handler
-                # code explicitly returns a 5xx error.
-                self.logger.error(
-                    'Raising 5xx error',
-                    response=response_dict,
-                    http_status=response.status_code,
-                )
+                if response_dict['title'] == RESPONSE_CONTRACT_VIOLATION:
+                    # This case is generally enountered if the API endpoint
+                    # handler code does not conform to the contract dictated by
+                    # the Swagger specification.
+                    self.logger.error(
+                        RESPONSE_CONTRACT_VIOLATION,
+                        detail=response_dict['detail']
+                    )
+                else:
+                    # This case will trigger if
+                    # a) the handler code raises an unexpected exception
+                    # or
+                    # b) the handler code explicitly returns a 5xx error.
+                    self.logger.error(
+                        'Raising 5xx error',
+                        response=response_dict,
+                        http_status=response.status_code,
+                    )
                 raise httperror.HTTPError(status=response.status_code)
             else:
                 return response_dict
@@ -174,7 +199,7 @@ def _build_wsgi_env(event, app_name):
 
 
 def get_connexion_app(app_name, app_swagger_path, strict_validation=True,
-                      validate_responses=True, cache_app=True):
+                      validate_responses=True, cache_app=True, logger=None):
     # Optionally cache application instances, because it takes a significant
     # amount of time to process the Swagger definition, and we shouldn't be
     # doing it on every single request.
@@ -183,6 +208,7 @@ def get_connexion_app(app_name, app_swagger_path, strict_validation=True,
         app = FleeceApp(
             app_name,
             specification_dir=os.path.dirname(full_path_to_swagger_yaml),
+            logger=logger,
         )
         app.add_api(
             os.path.basename(full_path_to_swagger_yaml),

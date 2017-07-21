@@ -347,12 +347,15 @@ def trace_xray_subsegment(skip_args=False):
             if skip_args
             else extract_function_metadata
         )
-        return generic_xray_wrapper(
-            wrapped, instance, args, kwargs,
-            name=get_function_name,
-            namespace='local',
-            metadata_extractor=metadata_extractor,
-        )
+        if os.environ.get('XRAY_DISABLE'):
+            return wrapped(*args, **kwargs)
+        else:
+            return generic_xray_wrapper(
+                wrapped, instance, args, kwargs,
+                name=get_function_name,
+                namespace='local',
+                metadata_extractor=metadata_extractor,
+            )
 
     return wrapper
 
@@ -427,11 +430,14 @@ def xray_botocore_api_call(wrapped, instance, args, kwargs):
 
 def monkey_patch_botocore_for_xray():
     """Explicit way to monkey-patch botocore to trace AWS API calls."""
-    wrapt.wrap_function_wrapper(
-        'botocore.client',
-        'BaseClient._make_api_call',
-        xray_botocore_api_call,
-    )
+    if os.environ.get('XRAY_DISABLE'):
+        pass
+    else:
+        wrapt.wrap_function_wrapper(
+            'botocore.client',
+            'BaseClient._make_api_call',
+            xray_botocore_api_call,
+        )
 
 
 def extract_http_metadata(wrapped, instance, args, kwargs, return_value):

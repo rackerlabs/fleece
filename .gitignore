@@ -68,3 +68,5 @@ coverage/
 
 .python-version
 README.rst
+
+.vscode/

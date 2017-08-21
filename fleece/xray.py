@@ -375,7 +375,6 @@ def extract_aws_metadata(wrapped, instance, args, kwargs, return_value):
         'Extracting AWS metadata',
         args=args,
         kwargs=kwargs,
-        response=response,
     )
     if 'operation_name' in kwargs:
         operation_name = kwargs['operation_name']
@@ -445,7 +444,6 @@ def extract_http_metadata(wrapped, instance, args, kwargs, return_value):
         'Extracting HTTP metadata',
         args=args,
         kwargs=kwargs,
-        response=response,
     )
     if 'request' in kwargs:
         request = kwargs['request']

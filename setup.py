@@ -37,10 +37,17 @@ INSTALL_REQUIRES = [
     'requests>=2.9.1',
     'boto3>=1.0.0',
     'wrapt>=1.10.10',
-    'connexion==1.1.9',
-    'Flask==0.12.2',
-    'Werkzeug==0.12.2',
 ]
+
+
+EXTRAS_REQUIRE = {
+    'connexion': [
+        'connexion==1.1.9',
+        'Flask==0.12.2',
+        'Werkzeug==0.12.2',
+    ],
+}
+
 
 TESTS_REQUIRE = [
     'coverage>=4.0.3',
@@ -69,6 +76,7 @@ package_attributes = {
     'author_email': about['__email__'],
     'classifiers': CLASSIFIERS,
     'description': about['__summary__'],
+    'extras_require': EXTRAS_REQUIRE,
     'install_requires': INSTALL_REQUIRES,
     'keywords': about['__keywords__'],
     'license': about['__license__'],

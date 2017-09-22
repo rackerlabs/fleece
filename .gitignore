@@ -64,6 +64,7 @@ target/
 coverage/
 
 .idea/
+.vscode/
 
 .python-version
 README.rst

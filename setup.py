@@ -48,7 +48,10 @@ EXTRAS_REQUIRE = {
     ],
     'build': [
         'docker==2.5.1'
-    ]
+    ],
+    'wsgi': [
+        'Werkzeug==0.12.2',
+    ],
 }
 
 ENTRY_POINTS = {

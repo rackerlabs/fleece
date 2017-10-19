@@ -46,8 +46,16 @@ EXTRAS_REQUIRE = {
         'Flask==0.12.2',
         'Werkzeug==0.12.2',
     ],
+    'build': [
+        'docker==2.5.1'
+    ]
 }
 
+ENTRY_POINTS = {
+    'console_scripts': [
+        'fleece = fleece.cli.main:main',
+    ],
+}
 
 TESTS_REQUIRE = [
     'coverage>=4.0.3',
@@ -78,11 +86,13 @@ package_attributes = {
     'description': about['__summary__'],
     'extras_require': EXTRAS_REQUIRE,
     'install_requires': INSTALL_REQUIRES,
+    'entry_points': ENTRY_POINTS,
     'keywords': about['__keywords__'],
     'license': about['__license__'],
     'long_description': LONG_DESCRIPTION,
     'name': about['__title__'],
     'packages': setuptools.find_packages(exclude=['tests']),
+    'include_package_data':  True,
     'tests_require': TESTS_REQUIRE,
     'test_suite': 'tests',
     'url': about['__url__'],

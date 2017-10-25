@@ -1,7 +1,7 @@
 import sys
 import pkg_resources
 
-commands = ['build']
+commands = ['build', 'run']
 
 
 def main():

@@ -46,8 +46,9 @@ EXTRAS_REQUIRE = {
         'Flask==0.12.2',
         'Werkzeug==0.12.2',
     ],
-    'build': [
-        'docker==2.5.1'
+    'cli': [
+        'docker==2.5.1',
+        'PyYAML>=3.12',
     ],
     'wsgi': [
         'Werkzeug==0.12.2',

@@ -176,3 +176,56 @@ if __name__ == '__main__':
     app = get_connexion_app('myapi', 'swagger.yml')
     app.run(8080)
 ```
+
+## Fleece CLI
+
+Fleece offers a limited functionality CLI to help build Lambda packages and run commands in a shell environment with AWS credentials from a Rackspace Fanatical AWS Account. The CLI functionality is not installed by default but can be installed as an extras package. NOTE: Package building with Fleece requires Docker.
+
+### Installation
+
+```
+pip install fleece[cli]
+```
+
+### `fleece run`
+
+```
+usage: fleece run [-h] [--username USERNAME] [--apikey APIKEY]
+                  [--config CONFIG] [--account ACCOUNT]
+                  [--environment ENVIRONMENT] [--role ROLE]
+                  command
+
+Run command in environment with AWS credentials from Rackspace FAWS API
+
+positional arguments:
+  command               Command to execute
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --username USERNAME, -u USERNAME
+                        Rackspace username. Can also be set via RS_USERNAME
+                        environment variable
+  --apikey APIKEY, -k APIKEY
+                        Rackspace API key. Can also be set via RS_API_KEY
+                        environment variable
+  --config CONFIG, -c CONFIG
+                        Path to YAML config file with defined accounts and
+                        aliases. Default is ./environments.yml
+  --account ACCOUNT, -a ACCOUNT
+                        AWS account number. Cannot be used with
+                        `--environment`
+  --environment ENVIRONMENT, -e ENVIRONMENT
+                        Environment alias to AWS account defined in config
+                        file. Cannot be used with `--account`
+  --role ROLE, -r ROLE  Role name to assume after obtaining credentials from
+                        FAWS API
+```
+
+```
+# fleece run --username $username --apikey $apikey --account $account 'aws s3 ls'
+2017-10-02 12:03:18 bucket1
+2017-06-08 14:31:07 bucket2
+2017-08-10 17:28:47 bucket3
+2017-08-10 17:21:58 bucket4
+2017-08-15 20:33:02 bucket5
+```

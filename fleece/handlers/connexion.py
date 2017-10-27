@@ -17,6 +17,7 @@ import connexion
 import six
 import werkzeug.wrappers
 
+from fleece.handlers.wsgi import build_wsgi_environ_from_event
 from fleece import httperror
 import fleece.log
 
@@ -148,6 +149,48 @@ class FleeceApp(connexion.App):
             self.logger.exception('Unhandled exception')
             raise httperror.HTTPError(status=500)
 
+    def call_proxy_api(self, event):
+        """Make a request against the API defined by this app.
+
+        Return any result from the API call as a dict that is expected by the
+        AWS_PROXY type integration in API Gateway.
+
+        :param dict event:
+            Dictionary containing the entire request payload passed to the
+            Lambda function handler.
+        :returns:
+            Dictionary containing the response data from the API endpoint.
+        :raises:
+            :class:`fleece.httperror.HTTPError` on 4xx or 5xx responses from
+            the API endpoint handler, or a 500 response on an unexpected
+            failure (due to a bug in handler code, for example).
+        """
+        try:
+            environ = build_wsgi_environ_from_event(event)
+            response = werkzeug.wrappers.Response.from_app(self, environ)
+            return {
+                'statusCode': response.status_code,
+                'headers': {
+                    header: value for header, value in response.headers.items()
+                },
+                'body': response.get_data(as_text=True),
+            }
+        except Exception:
+            # We should actually never get here, because exceptions raised
+            # within the application are handled by the error handlers, and the
+            # default one will return a clean 500 error during the happy path
+            # above.
+            self.logger.exception('Unhandled exception')
+            return {
+                'statusCode': 500,
+                'headers': {},
+                'body': json.dumps({
+                    'error': {
+                        'message': 'Internal server error.',
+                    },
+                }),
+            }
+
 
 def _build_wsgi_env(event, app_name):
     """Turn the Lambda/API Gateway request event into a WSGI environment dict.
@@ -251,3 +294,40 @@ def call_api(event, app_name, app_swagger_path, logger, strict_validation=True,
         cache_app=cache_app,
     )
     return app.call_api(event)
+
+
+def call_proxy_api(event, app_name, app_swagger_path, logger,
+                   strict_validation=True, validate_responses=True,
+                   cache_app=True):
+    """Wire up the incoming Lambda/API Gateway request to an application.
+
+    Integration type of the resource must be AWS_LAMBDA in order for this to
+    work.
+
+    :param dict event:
+        Dictionary containing the entire request template. This can vary wildly
+        depending on the template structure and contents.
+    :param str app_name:
+        Name of the API application.
+    :param str app_swagger_path:
+        Local path to the Swagger API YAML file.
+    :param logging.Logger logger:
+        A Logger instance returned by `fleece.log.get_logger()` to be used for
+        capturing details about errors.
+    :param bool strict_validation:
+        Toggle to enable/disable Connexion's parameter validation.
+    :param bool validate_responses:
+        Toggle to enable/disable Connexion's response validation.
+    :param bool cache_app:
+        Toggle to enable/disable the caching of the Connextion/Flask app
+        instance. It's on by default, because it provides a significant
+        performance improvement in the Lambda runtime environment.
+    """
+    app = get_connexion_app(
+        app_name=app_name,
+        app_swagger_path=app_swagger_path,
+        strict_validation=strict_validation,
+        validate_responses=validate_responses,
+        cache_app=cache_app,
+    )
+    return app.call_proxy_api(event)

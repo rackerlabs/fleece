@@ -1,14 +1,8 @@
 from werkzeug.test import EnvironBuilder
 
 
-def wsgi_handler(event, context, app, logger):
-    """lambda handler function.
-    This function creates a WSGI environment from the proxy integration event,
-    runs the WSGI app with it and collects its response, then translates the
-    response back into the format expected by the API Gateway proxy
-    integration.
-    """
-
+def build_wsgi_environ_from_event(event):
+    """Create a WSGI environment from the proxy integration event."""
     params = event.get('queryStringParameters')
     environ = EnvironBuilder(method=event.get('httpMethod') or 'GET',
                              path=event.get('path') or '/',
@@ -25,6 +19,17 @@ def wsgi_handler(event, context, app, logger):
         environ['SCRIPT_NAME'] = ''
     environ['wsgi.url_scheme'] = 'https'
     environ['lambda.event'] = event
+    return environ
+
+
+def wsgi_handler(event, context, app, logger):
+    """lambda handler function.
+    This function runs the WSGI app with it and collects its response, then
+    translates the response back into the format expected by the API Gateway
+    proxy integration.
+    """
+
+    environ = build_wsgi_environ_from_event(event)
     wsgi_status = []
     wsgi_headers = []
 

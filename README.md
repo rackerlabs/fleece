@@ -229,3 +229,26 @@ optional arguments:
 2017-08-10 17:21:58 bucket4
 2017-08-15 20:33:02 bucket5
 ```
+
+You can also setup an environments file to reduce command-line flags:
+
+```
+# cat environments.yml
+environments:
+  - name: development
+    account: '123456789012'
+  - name: staging
+    account: '123456789012'
+  - name: testing
+    account: '123456789012'
+  - name: production
+    account: '123456789012'
+    role: LambdaDeployRole
+
+# fleece run --username $username --apikey $apikey --environment testing 'aws s3 ls'
+2017-10-02 12:03:18 bucket1
+2017-06-08 14:31:07 bucket2
+2017-08-10 17:28:47 bucket3
+2017-08-10 17:21:58 bucket4
+2017-08-15 20:33:02 bucket5
+```

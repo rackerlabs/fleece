@@ -39,7 +39,7 @@ def wsgi_handler(event, context, app, logger):
     resp = list(app(environ, start_response))
     proxy = {'statusCode': int(wsgi_status[0].split()[0]),
              'headers': {h[0]: h[1] for h in wsgi_headers[0]},
-             'body': b''.join(resp)}
+             'body': b''.join(resp).decode('utf-8')}
 
     logger.info("Returning {}".format(proxy['statusCode']),
                 http_status=proxy['statusCode'])

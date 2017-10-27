@@ -1,21 +1,25 @@
 import sys
 import pkg_resources
 
-commands = ['build']
+commands = ['build', 'run']
 
 
 def main():
     if sys.argv[1] in commands:
-        # if there is an extra with the name of this command, check that the
-        # dependencies are installed before executing the command
+        # Check that the CLI dependencies are installed before executing the
+        # command.
         deps = pkg_resources.get_distribution('fleece')._dep_map.get(
-            sys.argv[1], [])
+            'cli', [])
         for dep in deps:
             try:
-                __import__(dep.project_name)
+                # PyYAML really messes this up.
+                if dep.project_name == 'PyYAML':
+                    __import__('yaml')
+                else:
+                    __import__(dep.project_name)
             except ImportError:
                 print('Dependency "{}" is not installed. Did you run '
-                      '"pip install fleece[{}]"?'.format(dep, sys.argv[1]))
+                      '"pip install fleece[cli]"?'.format(dep))
                 sys.exit(1)
 
         # execute the command

@@ -179,6 +179,7 @@ def run(args):
         shell=True,
         stderr=subprocess.STDOUT,
         stdout=subprocess.PIPE,
+        encoding='utf-8',
     )
     for line in iter(process.stdout.readline, ''):
         sys.stdout.write(line)

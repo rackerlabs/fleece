@@ -4,7 +4,16 @@ import pkg_resources
 commands = ['build', 'run']
 
 
+def print_help():
+    print('Available sub-commands: {}.'.format(', '.join(commands)))
+    print('Use "fleece <sub-command> --help" for usage.')
+
+
 def main():
+    if len(sys.argv) == 1:
+        print_help()
+        sys.exit(0)
+
     if sys.argv[1] in commands:
         # Check that the CLI dependencies are installed before executing the
         # command.
@@ -30,5 +39,4 @@ def main():
         if sys.argv[1] not in ['--help', '-h']:
             print('"{}" is not an available fleece sub-command.'.format(
                 sys.argv[1]))
-        print('Available sub-commands: {}.'.format(', '.join(commands)))
-        print('Use "fleece <sub-command> --help" for usage.')
+        print_help()

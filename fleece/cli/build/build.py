@@ -20,18 +20,21 @@ def parse_args(args):
     parser.add_argument('--requirements', '-r', type=str,
                         default='',
                         help=('requirements.txt file with dependencies '
-                              '(default: src/requirements.txt)'))
+                              '(default: $service_dir/src/requirements.txt)'))
     parser.add_argument('--dependencies', '-d', type=str, default='',
                         help='comma separated list of system dependencies')
     parser.add_argument('--target', '-t', type=str,
                         default='',
-                        help='target directory for lambda_function.zip')
+                        help=('target directory for lambda_function.zip '
+                              '(default $service_dir/dist)'))
     parser.add_argument('--source', '-s', type=str,
                         default='',
                         help=('source directory to include in '
-                              'lambda_function.zip'))
+                              'lambda_function.zip (default: '
+                              '$service_dir/src)'))
     parser.add_argument('service_dir', type=str,
-                        help='directory where the service is located')
+                        help=('directory where the service is located '
+                              '(default: $pwd)'))
     return parser.parse_args(args)
 
 

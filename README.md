@@ -187,6 +187,47 @@ Fleece offers a limited functionality CLI to help build Lambda packages and run 
 pip install fleece[cli]
 ```
 
+### `fleece build`
+
+```
+usage: fleece build [-h] [--python36] [--rebuild]
+                    [--requirements REQUIREMENTS]
+                    [--dependencies DEPENDENCIES] [--target TARGET]
+                    [--source SOURCE]
+                    service_dir
+
+Simple Lambda builder.
+
+positional arguments:
+  service_dir           directory where the service is located (default: $pwd)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --python36, -3        use Python 3.6 (default: Python 2.7)
+  --rebuild             rebuild Python dependencies
+  --requirements REQUIREMENTS, -r REQUIREMENTS
+                        requirements.txt file with dependencies (default:
+                        $service_dir/src/requirements.txt)
+  --dependencies DEPENDENCIES, -d DEPENDENCIES
+                        comma separated list of system dependencies
+  --target TARGET, -t TARGET
+                        target directory for lambda_function.zip (default
+                        $service_dir/dist)
+  --source SOURCE, -s SOURCE
+                        source directory to include in lambda_function.zip
+                        (default: $service_dir/src
+```
+
+To build a lambda package from the service's top-level directory:
+
+```
+$ fleece build .
+```
+
+The assumptions made with the above command are that the source code of the service is in `./src`, the requirements file is in `./src/requirements.txt` and the output zip file will be written to `./dist`. These defaults can be changed with the `--source`, `--requirements` and `--target` options respectively.
+
+The build process will run in a Docker container based on the Amazon Linux image. If there are any additional dependencies that need to be installed on the container prior to installing the Python requirements, those can be given with the `--dependencies` option.
+
 ### `fleece run`
 
 ```

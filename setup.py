@@ -49,6 +49,7 @@ EXTRAS_REQUIRE = {
     'cli': [
         'docker==2.5.1',
         'PyYAML>=3.12',
+        'ruamel.yaml==0.15.34',
     ],
     'wsgi': [
         'Werkzeug==0.12.2',

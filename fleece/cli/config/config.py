@@ -1,25 +1,78 @@
 #!/usr/bin/env python
 import argparse
+import base64
 import json
 import os
 import subprocess
 import sys
-import tempfile
 
+import boto3
 import ruamel.yaml as yaml
 import six
 
-import base64
+from fleece.cli.run import run
+
+if six.PY2:
+    input = raw_input
 
 
-def _encrypt_text(text, stage):
-    # TODO: use kms here
-    return base64.b64encode(text.encode('utf-8')).decode('utf-8')
+class AWSCredentialCache(object):
+    def __init__(self, rs_username, rs_api_key, env_config):
+        self.rs_username = rs_username
+        self.rs_api_key = rs_api_key
+        self.environments = run.get_config(env_config)['environments']
+        self.rax_token = None
+        self.tenant = None
+        self.awscreds = {}
+
+    def _get_rax_token(self):
+        if self.rax_token is None:
+            self.rax_token, self.tenant = run.get_rackspace_token(
+                self.rs_username, self.rs_api_key)
+        return self.rax_token, self.tenant
+
+    def get_awscreds(self, environment):
+        if environment not in self.awscreds:
+            account = None
+            for env in self.environments:
+                if env['name'] == environment:
+                    account = env['account']
+                    break
+            if account is None:
+                raise ValueError('Environment "{}" is not known, add it to '
+                                 'environments.yml file'.format(environment))
+            token, tenant = self._get_rax_token()
+            self.awscreds[environment] = run.get_aws_creds(
+                account, tenant, token)
+        return self.awscreds[environment]
 
 
-def _decrypt_text(text, stage):
-    # TODO: use kms here
-    return base64.b64decode(text.encode('utf-8')).decode('utf-8')
+STATE = {
+    'awscreds': None,  # cache of aws credentials
+    'keys': {}         # kms key for each environment
+}
+
+
+def _encrypt_text(text, environment):
+    if environment not in STATE['keys']:
+        raise ValueError('No key defined for environment "{}"'.format(
+            environment))
+    awscreds = STATE['awscreds'].get_awscreds(environment)
+    kms = boto3.client('kms', aws_access_key_id=awscreds['accessKeyId'],
+                       aws_secret_access_key=awscreds['secretAccessKey'],
+                       aws_session_token=awscreds['sessionToken'])
+    r = kms.encrypt(KeyId='alias/' + STATE['keys'][environment],
+                    Plaintext=text.encode('utf-8'))
+    return base64.b64encode(r['CiphertextBlob']).decode('utf-8')
+
+
+def _decrypt_text(text, environment):
+    awscreds = STATE['awscreds'].get_awscreds(environment)
+    kms = boto3.client('kms', aws_access_key_id=awscreds['accessKeyId'],
+                       aws_secret_access_key=awscreds['secretAccessKey'],
+                       aws_session_token=awscreds['sessionToken'])
+    r = kms.decrypt(CiphertextBlob=base64.b64decode(text.encode('utf-8')))
+    return r['Plaintext'].decode('utf-8')
 
 
 def _encrypt_item(data, stage, key):
@@ -66,7 +119,8 @@ def import_config(args):
         # YAML input
         config = yaml.round_trip_load(source)
 
-    config = _encrypt_dict(config)
+    STATE['keys'] = config['keys']
+    config['config'] = _encrypt_dict(config['config'])
     with open(args.config, 'wt') as f:
         if config:
             yaml.round_trip_dump(config, f)
@@ -128,9 +182,11 @@ def export_config(args):
     if os.path.exists(args.config):
         with open(args.config, 'rt') as f:
             config = yaml.round_trip_load(f.read())
-        config = _decrypt_dict(config)
+        config['config'] = _decrypt_dict(config['config'])
     else:
-        config = {}
+        config = {'keys': {env['name']: 'enter-key-name-here'
+                           for env in STATE['awscreds'].environments},
+                  'config': {}}
     if args.json:
         print(json.dumps(config, indent=4))
     elif config:
@@ -138,14 +194,23 @@ def export_config(args):
 
 
 def edit_config(args):
-    ftemp, filename = tempfile.mkstemp()
-    os.close(ftemp)
+    filename = '.fleece_render_tmp'
+    skip_import = False
 
-    with open(filename, 'wt') as fd:
-        stdout = sys.stdout
-        sys.stdout = fd
-        export_config(args)
-        sys.stdout = stdout
+    if os.path.exists(filename):
+        p = input('A previously interrupted edit session was found. Do you '
+                  'want to (C)ontinue that session or (A)bort it? ')
+        if p.lower() == 'a':
+            os.unlink(filename)
+        elif p.lower() == 'c':
+            skip_import = True
+
+    if not skip_import:
+        with open(filename, 'wt') as fd:
+            stdout = sys.stdout
+            sys.stdout = fd
+            export_config(args)
+            sys.stdout = stdout
 
     subprocess.call(args.editor + ' ' + filename, shell=True)
 
@@ -163,9 +228,9 @@ def render_config(args):
         config = yaml.safe_load(f.read())
     config = _decrypt_item(config, stage=args.stage, key='', render=True)
     if args.json:
-        print(json.dumps(config, indent=4))
+        print(json.dumps(config['config'], indent=4))
     elif config:
-        yaml.round_trip_dump(config, sys.stdout)
+        yaml.round_trip_dump(config['config'], sys.stdout)
 
 
 def upload_config(args):
@@ -177,9 +242,21 @@ def parse_args(args):
         prog='fleece config',
         description=('Configuration management')
     )
-    parser.add_argument(
-        '--config', '-c', default='config.yml',
-        help='Config file (default is config.yml)')
+    parser.add_argument('--config', '-c', default='config.yml',
+                        help='Config file (default is config.yml)')
+    parser.add_argument('--username', '-u', type=str,
+                        default=os.environ.get('RS_USERNAME'),
+                        help=('Rackspace username. Can also be set via '
+                              'RS_USERNAME environment variable'))
+    parser.add_argument('--apikey', '-k', type=str,
+                        default=os.environ.get('RS_API_KEY'),
+                        help=('Rackspace API key. Can also be set via '
+                              'RS_API_KEY environment variable'))
+    parser.add_argument('--environments', '-e', type=str,
+                        default='./environments.yml',
+                        help=('Path to YAML config file with defined accounts '
+                              'and stage names. Defaults to '
+                              './environments.yml'))
     subparsers = parser.add_subparsers(help='Sub-command help')
 
     import_parser = subparsers.add_parser(
@@ -220,4 +297,8 @@ def parse_args(args):
 
 def main(args):
     parsed_args = parse_args(args)
+
+    STATE['awscreds'] = AWSCredentialCache(rs_username=parsed_args.username,
+                                           rs_api_key=parsed_args.apikey,
+                                           env_config=parsed_args.environments)
     parsed_args.func(parsed_args)

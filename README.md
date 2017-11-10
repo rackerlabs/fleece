@@ -215,7 +215,7 @@ optional arguments:
                         $service_dir/dist)
   --source SOURCE, -s SOURCE
                         source directory to include in lambda_function.zip
-                        (default: $service_dir/src
+                        (default: $service_dir/src)
 ```
 
 To build a lambda package from the service's top-level directory:

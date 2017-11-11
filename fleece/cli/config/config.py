@@ -11,6 +11,7 @@ import ruamel.yaml as yaml
 import six
 
 from fleece.cli.run import run
+from fleece.parameters import write_parameters, erase_parameters
 
 if six.PY2:
     input = raw_input
@@ -130,7 +131,7 @@ def _decrypt_item(data, stage, key, render):
     if (isinstance(data, six.text_type) or isinstance(data, six.binary_type)) \
             and data.startswith(':decrypt:'):
         data = _decrypt_text(data[9:], stage)
-        if not render:
+        if not render or render == 'ssm':
             data = ':encrypt:' + data
     elif isinstance(data, dict):
         per_stage = [k.startswith('-') for k in data]
@@ -194,7 +195,7 @@ def export_config(args):
 
 
 def edit_config(args):
-    filename = '.fleece_render_tmp'
+    filename = '.fleece_edit_tmp'
     skip_import = False
 
     if os.path.exists(filename):
@@ -234,7 +235,20 @@ def render_config(args):
 
 
 def upload_config(args):
-    print('not implemented yet')
+    awscreds = STATE['awscreds'].get_awscreds(args.stage)
+    boto_args = {
+        'aws_access_key_id': awscreds['accessKeyId'],
+        'aws_secret_access_key': awscreds['secretAccessKey'],
+        'aws_session_token': awscreds['sessionToken']
+    }
+    if args.erase:
+        erase_parameters(args.path, **boto_args)
+    else:
+        with open(args.config, 'rt') as f:
+            config = yaml.safe_load(f.read())
+        config = _decrypt_item(config, stage=args.stage, key='', render='ssm')
+        write_parameters(config['config'], config['keys'][args.stage],
+                         args.path, **boto_args)
 
 
 def parse_args(args):
@@ -265,16 +279,13 @@ def parse_args(args):
 
     export_parser = subparsers.add_parser(
         'export', help='Export configuration to stdout')
-    export_parser.add_argument(
-        '--json', action='store_true',
-        help='Use JSON format (default is YAML)')
+    export_parser.add_argument('--json', action='store_true',
+                               help='Use JSON format (default is YAML)')
     export_parser.set_defaults(func=export_config)
 
-    edit_parser = subparsers.add_parser(
-        'edit', help='Edit configuration')
-    edit_parser.add_argument(
-        '--json', action='store_true',
-        help='Use JSON format (default is YAML)')
+    edit_parser = subparsers.add_parser('edit', help='Edit configuration')
+    edit_parser.add_argument('--json', action='store_true',
+                             help='Use JSON format (default is YAML)')
     edit_parser.add_argument(
         '--editor', '-e', default=os.environ.get('FLEECE_EDITOR', 'vi'),
         help='Text editor (defaults to $FLEECE_EDITOR, or else "vi")')
@@ -282,15 +293,18 @@ def parse_args(args):
 
     render_parser = subparsers.add_parser(
         'render', help='Render configuration for a stage')
-    render_parser.add_argument(
-        '--json', action='store_true',
-        help='Use JSON format (default is YAML)')
-    render_parser.add_argument(
-        'stage', help='Target stage name')
+    render_parser.add_argument('--json', action='store_true',
+                               help='Use JSON format (default is YAML)')
+    render_parser.add_argument('stage', help='Target stage name')
     render_parser.set_defaults(func=render_config)
 
     upload_parser = subparsers.add_parser(
         'upload', help='Upload configuration to SSM')
+    upload_parser.add_argument('stage', help='Target stage name')
+    upload_parser.add_argument('--path', '-p', required=True,
+                               help='Parameter store root path')
+    upload_parser.add_argument('--erase', action='store_true',
+                               help='Only erase existing parameters')
     upload_parser.set_defaults(func=upload_config)
     return parser.parse_args(args)
 

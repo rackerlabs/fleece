@@ -24,8 +24,8 @@ test_yaml_config = '''keys:
 config:
   foo: bar
   password:
-    -dev: :encrypt:dev-password
-    -prod: :encrypt:prod-password
+    +dev: :encrypt:dev-password
+    +prod: :encrypt:prod-password
 '''
 
 test_json_config = '''{
@@ -36,8 +36,8 @@ test_json_config = '''{
     "config": {
         "foo": "bar",
         "password": {
-            "-dev": ":encrypt:dev-password",
-            "-prod": ":encrypt:prod-password"
+            "+dev": ":encrypt:dev-password",
+            "+prod": ":encrypt:prod-password"
         }
     }
 }
@@ -49,8 +49,8 @@ test_config_file = '''keys:
 config:
   foo: bar
   password:
-    -dev: :decrypt:ZGV2OmRldi1wYXNzd29yZA==
-    -prod: :decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk'''
+    +dev: :decrypt:ZGV2OmRldi1wYXNzd29yZA==
+    +prod: :decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk'''
 
 
 test_environments = {
@@ -98,8 +98,8 @@ class TestCLIConfig(unittest.TestCase):
             'config': {
                 'foo': 'bar',
                 'password': {
-                    '-dev': ':decrypt:ZGV2OmRldi1wYXNzd29yZA==',
-                    '-prod': ':decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk'
+                    '+dev': ':decrypt:ZGV2OmRldi1wYXNzd29yZA==',
+                    '+prod': ':decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk'
                 }
             }
         })
@@ -120,8 +120,8 @@ class TestCLIConfig(unittest.TestCase):
             'config': {
                 'foo': 'bar',
                 'password': {
-                    '-dev': ':decrypt:ZGV2OmRldi1wYXNzd29yZA==',
-                    '-prod': ':decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk'
+                    '+dev': ':decrypt:ZGV2OmRldi1wYXNzd29yZA==',
+                    '+prod': ':decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk'
                 }
             }
         })
@@ -143,8 +143,8 @@ class TestCLIConfig(unittest.TestCase):
             'config': {
                 'foo': 'bar',
                 'password': {
-                    '-dev': ':encrypt:dev-password',
-                    '-prod': ':encrypt:prod-password'
+                    '+dev': ':encrypt:dev-password',
+                    '+prod': ':encrypt:prod-password'
                 }
             }
         })
@@ -166,8 +166,8 @@ class TestCLIConfig(unittest.TestCase):
             'config': {
                 'foo': 'bar',
                 'password': {
-                    '-dev': ':encrypt:dev-password',
-                    '-prod': ':encrypt:prod-password'
+                    '+dev': ':encrypt:dev-password',
+                    '+prod': ':encrypt:prod-password'
                 }
             }
         })

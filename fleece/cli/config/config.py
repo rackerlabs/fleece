@@ -85,7 +85,7 @@ def _encrypt_item(data, stage, key):
         else:
             data = ':decrypt:' + _encrypt_text(data[9:], stage)
     elif isinstance(data, dict):
-        per_stage = [k.startswith('-') for k in data]
+        per_stage = [k.startswith('+') for k in data]
         if any(per_stage):
             if not all(per_stage):
                 raise ValueError('Keys "{}" have a mix of stage and non-stage '
@@ -111,8 +111,10 @@ def _encrypt_dict(data, stage=None, key=''):
     return data
 
 
-def import_config(args):
-    source = sys.stdin.read().strip()
+def import_config(args, input_file=None):
+    if not input_file:
+        input_file = sys.stdin
+    source = input_file.read().strip()
     if source[0] == '{':
         # JSON input
         config = json.loads(source)
@@ -134,7 +136,9 @@ def _decrypt_item(data, stage, key, render):
         if not render or render == 'ssm':
             data = ':encrypt:' + data
     elif isinstance(data, dict):
-        per_stage = [k.startswith('-') for k in data]
+        if len(data) == 0:
+            return data
+        per_stage = [k.startswith('+') for k in data]
         if any(per_stage):
             if not all(per_stage):
                 raise ValueError('Keys "{}" have a mix of stage and non-stage '
@@ -142,13 +146,13 @@ def _decrypt_item(data, stage, key, render):
         if render:
             main_stage, default_stage = (stage + ':').split(':')[:2]
             if per_stage[0]:
-                if '-' + main_stage in data:
+                if '+' + main_stage in data:
                     data = _decrypt_item(
-                        data.get(stage, data['-' + main_stage]),
+                        data.get(stage, data['+' + main_stage]),
                         stage=stage, key=key, render=render)
-                elif '-' + default_stage in data:
+                elif '+' + default_stage in data:
                     data = _decrypt_item(
-                        data.get(stage, data['-' + default_stage]),
+                        data.get(stage, data['+' + default_stage]),
                         stage=stage, key=key, render=render)
                 else:
                     raise ValueError('Key "{}" has no value for stage '
@@ -179,7 +183,9 @@ def _decrypt_dict(data, stage=None, key='', render=False):
     return data
 
 
-def export_config(args):
+def export_config(args, output_file=None):
+    if not output_file:
+        output_file = sys.stdout
     if os.path.exists(args.config):
         with open(args.config, 'rt') as f:
             config = yaml.round_trip_load(f.read())
@@ -189,9 +195,9 @@ def export_config(args):
                            for env in STATE['awscreds'].environments},
                   'config': {}}
     if args.json:
-        print(json.dumps(config, indent=4))
+        output_file.write(json.dumps(config, indent=4))
     elif config:
-        yaml.round_trip_dump(config, sys.stdout)
+        yaml.round_trip_dump(config, output_file)
 
 
 def edit_config(args):
@@ -208,18 +214,12 @@ def edit_config(args):
 
     if not skip_import:
         with open(filename, 'wt') as fd:
-            stdout = sys.stdout
-            sys.stdout = fd
-            export_config(args)
-            sys.stdout = stdout
+            export_config(args, output_file=fd)
 
     subprocess.call(args.editor + ' ' + filename, shell=True)
 
     with open(filename, 'rt') as fd:
-        stdin = sys.stdin
-        sys.stdin = fd
-        import_config(args)
-        sys.stdin = stdin
+        import_config(args, input_file=fd)
 
     os.unlink(filename)
 
@@ -227,7 +227,8 @@ def edit_config(args):
 def render_config(args):
     with open(args.config, 'rt') as f:
         config = yaml.safe_load(f.read())
-    config = _decrypt_item(config, stage=args.stage, key='', render=True)
+    config['config'] = _decrypt_item(config['config'], stage=args.stage,
+                                     key='', render=True)
     if args.json:
         print(json.dumps(config['config'], indent=4))
     elif config:

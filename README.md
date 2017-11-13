@@ -339,26 +339,26 @@ The open configuration format is as follows:
 
 ```
 keys:                                 # kms encryption keys for each environment
-  dev: dev-key-here
+  dev: dev-key-here                   # use the key name here, without the "alias/" prefix
   prod: prod-key-here
 config:
   foo: bar                            # plain text variable
   password:                           # per-stage values, encrypted
-    -dev: :encrypt:my-dev-password
-    -prod: :encrypt:my-prod-password
+    +dev: :encrypt:my-dev-password
+    +prod: :encrypt:my-prod-password
   nested:                             # nested dictionaries
     inner_var: value
     a_list:                           # list of dictionaries
       - username1:                    # per-stage values, without encryption
-          -dev: bob-dev
-          -prod: bob-prod
+          +dev: bob-dev
+          +prod: bob-prod
         password1:                    # per-stage values, encrypted
-          -dev: :encrypt:bob-dev-pw
-          -prod: :encrypt:bob-prod-pw
+          +dev: :encrypt:bob-dev-pw
+          +prod: :encrypt:bob-prod-pw
       - username2: user2
         password2:
-          -dev: :encrypt:dev-pw2
-          -prod: :encrypt:prod-pw2
+          +dev: :encrypt:dev-pw2
+          +prod: :encrypt:prod-pw2
 ```
 
 Any variables that are sensitive and need to be encrypted need to have per-stage values, and these must have the `:encrypt:` prefix so that fleece knows to encrypt them when the configuration is imported.

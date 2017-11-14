@@ -118,7 +118,15 @@ def build(args):
     for line in container.logs(stream=True, follow=True):
         sys.stdout.write(line.decode('utf-8'))
     exit_code = container.wait()
-    container.remove()
+    try:
+        container.remove()
+    except docker.errors.APIError as e:
+        if 'Failed to destroy btrfs snapshot' in str(e):
+            # circle-ci builds do not get permissions that allow them to remove
+            # containers, see https://circleci.com/docs/1.0/docker-btrfs-error/
+            pass
+        else:
+            raise
 
     if exit_code:
         print('Error: build ended with exit code = {}.'.format(exit_code))

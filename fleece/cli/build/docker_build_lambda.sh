@@ -5,7 +5,7 @@ if [[ ! -f /build_cache/${DEPENDENCIES_SHA}.zip ]] || [[ "$REBUILD_DEPENDENCIES"
     mkdir /tmp/build
     /usr/bin/pip-${python_version:6:1}.${python_version:7:1} install -r /requirements.txt -t /tmp/build
     cd /tmp/build
-    zip -r /build_cache/${DEPENDENCIES_SHA}.zip ./*
+    zip -r /build_cache/${DEPENDENCIES_SHA}.zip .
 else
     echo "using cached dependencies; no rebuild"
 fi

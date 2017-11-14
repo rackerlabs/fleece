@@ -9,6 +9,10 @@ import sys
 import boto3
 import ruamel.yaml as yaml
 import six
+if six.PY2:  # noqa
+    from StringIO import StringIO
+else:
+    from io import StringIO
 
 from fleece.cli.run import run
 from fleece.parameters import write_parameters, erase_parameters
@@ -54,6 +58,12 @@ STATE = {
 }
 
 
+def _get_kms_key_id(key):
+    if key.startswith('alias/') or key.startswith('arn:'):
+        return key
+    return 'alias/' + key
+
+
 def _encrypt_text(text, environment):
     if environment not in STATE['keys']:
         raise ValueError('No key defined for environment "{}"'.format(
@@ -62,7 +72,7 @@ def _encrypt_text(text, environment):
     kms = boto3.client('kms', aws_access_key_id=awscreds['accessKeyId'],
                        aws_secret_access_key=awscreds['secretAccessKey'],
                        aws_session_token=awscreds['sessionToken'])
-    r = kms.encrypt(KeyId='alias/' + STATE['keys'][environment],
+    r = kms.encrypt(KeyId=_get_kms_key_id(STATE['keys'][environment]),
                     Plaintext=text.encode('utf-8'))
     return base64.b64encode(r['CiphertextBlob']).decode('utf-8')
 
@@ -229,10 +239,35 @@ def render_config(args):
         config = yaml.safe_load(f.read())
     config['config'] = _decrypt_item(config['config'], stage=args.stage,
                                      key='', render=True)
-    if args.json:
-        print(json.dumps(config['config'], indent=4))
-    elif config:
-        yaml.round_trip_dump(config['config'], sys.stdout)
+    if args.json or args.encrypt:
+        rendered_config = json.dumps(
+            config['config'], indent=None if args.encrypt else 4,
+            separators=(',', ':') if args.encrypt else (',', ': '))
+    else:
+        buf = StringIO()
+        yaml.round_trip_dump(config['config'], buf)
+        rendered_config = buf.getvalue()
+    if args.encrypt:
+        STATE['keys'] = config['keys']
+        encrypted_config = []
+        while rendered_config:
+            buffer = _encrypt_text(rendered_config[:4096], args.stage)
+            rendered_config = rendered_config[4096:]
+            encrypted_config.append(buffer)
+        rendered_config = '''CONFIG = {}
+import base64
+import boto3
+import json
+def load_config():
+    config = ''
+    kms = boto3.client('kms')
+    for buffer in CONFIG:
+        r = kms.decrypt(CiphertextBlob=base64.b64decode(buffer.encode(
+            'utf-8')))
+        config += r['Plaintext'].decode('utf-8')
+    return json.loads(config)
+'''.format(encrypted_config)
+    print(rendered_config)
 
 
 def upload_config(args):
@@ -296,6 +331,8 @@ def parse_args(args):
         'render', help='Render configuration for a stage')
     render_parser.add_argument('--json', action='store_true',
                                help='Use JSON format (default is YAML)')
+    render_parser.add_argument('--encrypt', action='store_true',
+                               help='Encrypt rendered configuration')
     render_parser.add_argument('stage', help='Target stage name')
     render_parser.set_defaults(func=render_config)
 

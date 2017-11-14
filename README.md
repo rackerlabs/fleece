@@ -339,8 +339,8 @@ The open configuration format is as follows:
 
 ```
 keys:                                 # kms encryption keys for each environment
-  dev: dev-key-here                   # use the key name here, without the "alias/" prefix
-  prod: prod-key-here
+  dev: dev-key-here                   # the keys can be given with their ARN or their alias name
+  prod: prod-key-here                 # with or without the "alias/" prefix
 config:
   foo: bar                            # plain text variable
   password:                           # per-stage values, encrypted

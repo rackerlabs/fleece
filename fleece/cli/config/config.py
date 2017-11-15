@@ -233,7 +233,7 @@ def render_config(args, output_file=None):
         output_file = sys.stdout
     with open(args.config, 'rt') as f:
         config = yaml.safe_load(f.read())
-    config['config'] = _decrypt_item(config['config'], stage=args.stage,
+    config['config'] = _decrypt_item(config['config'], stage=args.environment,
                                      key='', render=True)
     if args.json or args.encrypt or args.python:
         rendered_config = json.dumps(
@@ -247,7 +247,7 @@ def render_config(args, output_file=None):
         STATE['keys'] = config['keys']
         encrypted_config = []
         while rendered_config:
-            buffer = _encrypt_text(rendered_config[:4096], args.stage)
+            buffer = _encrypt_text(rendered_config[:4096], args.environment)
             rendered_config = rendered_config[4096:]
             encrypted_config.append(buffer)
 
@@ -291,7 +291,7 @@ def parse_args(args):
     parser.add_argument('--environments', '-e', type=str,
                         default='./environments.yml',
                         help=('Path to YAML config file with defined accounts '
-                              'and stage names. Defaults to '
+                              'and environment names. Defaults to '
                               './environments.yml'))
     subparsers = parser.add_subparsers(help='Sub-command help')
 
@@ -314,7 +314,7 @@ def parse_args(args):
     edit_parser.set_defaults(func=edit_config)
 
     render_parser = subparsers.add_parser(
-        'render', help='Render configuration for a stage')
+        'render', help='Render configuration for an environment')
     render_parser.add_argument('--json', action='store_true',
                                help='Use JSON format (default is YAML)')
     render_parser.add_argument('--encrypt', action='store_true',
@@ -322,7 +322,7 @@ def parse_args(args):
     render_parser.add_argument('--python', action='store_true',
                                help=('Generate Python module with encrypted '
                                      'configuration'))
-    render_parser.add_argument('stage', help='Target stage name')
+    render_parser.add_argument('environment', help='Target environment name')
     render_parser.set_defaults(func=render_config)
 
     return parser.parse_args(args)

@@ -15,7 +15,6 @@ else:
     from io import StringIO
 
 from fleece.cli.run import run
-from fleece.parameters import write_parameters, erase_parameters
 
 if six.PY2:
     input = raw_input
@@ -154,15 +153,10 @@ def _decrypt_item(data, stage, key, render):
                 raise ValueError('Keys "{}" have a mix of stage and non-stage '
                                  'variables'.format(', '.join(data.keys)))
         if render:
-            main_stage, default_stage = (stage + ':').split(':')[:2]
             if per_stage[0]:
-                if '+' + main_stage in data:
+                if '+' + stage in data:
                     data = _decrypt_item(
-                        data.get(stage, data['+' + main_stage]),
-                        stage=stage, key=key, render=render)
-                elif '+' + default_stage in data:
-                    data = _decrypt_item(
-                        data.get(stage, data['+' + default_stage]),
+                        data.get(stage, data['+' + stage]),
                         stage=stage, key=key, render=render)
                 else:
                     raise ValueError('Key "{}" has no value for stage '
@@ -234,12 +228,14 @@ def edit_config(args):
     os.unlink(filename)
 
 
-def render_config(args):
+def render_config(args, output_file=None):
+    if not output_file:
+        output_file = sys.stdout
     with open(args.config, 'rt') as f:
         config = yaml.safe_load(f.read())
     config['config'] = _decrypt_item(config['config'], stage=args.stage,
                                      key='', render=True)
-    if args.json or args.encrypt:
+    if args.json or args.encrypt or args.python:
         rendered_config = json.dumps(
             config['config'], indent=None if args.encrypt else 4,
             separators=(',', ':') if args.encrypt else (',', ': '))
@@ -247,44 +243,34 @@ def render_config(args):
         buf = StringIO()
         yaml.round_trip_dump(config['config'], buf)
         rendered_config = buf.getvalue()
-    if args.encrypt:
+    if args.encrypt or args.python:
         STATE['keys'] = config['keys']
         encrypted_config = []
         while rendered_config:
             buffer = _encrypt_text(rendered_config[:4096], args.stage)
             rendered_config = rendered_config[4096:]
             encrypted_config.append(buffer)
-        rendered_config = '''CONFIG = {}
+
+        if not args.python:
+            rendered_config = json.dumps(encrypted_config)
+        else:
+            rendered_config = '''ENCRYPTED_CONFIG = {}
 import base64
 import boto3
 import json
+
 def load_config():
-    config = ''
+    config_json = ''
     kms = boto3.client('kms')
-    for buffer in CONFIG:
+    for buffer in ENCRYPTED_CONFIG:
         r = kms.decrypt(CiphertextBlob=base64.b64decode(buffer.encode(
             'utf-8')))
-        config += r['Plaintext'].decode('utf-8')
-    return json.loads(config)
+        config_json += r['Plaintext'].decode('utf-8')
+    return json.loads(config_json)
+
+CONFIG = load_config()
 '''.format(encrypted_config)
-    print(rendered_config)
-
-
-def upload_config(args):
-    awscreds = STATE['awscreds'].get_awscreds(args.stage)
-    boto_args = {
-        'aws_access_key_id': awscreds['accessKeyId'],
-        'aws_secret_access_key': awscreds['secretAccessKey'],
-        'aws_session_token': awscreds['sessionToken']
-    }
-    if args.erase:
-        erase_parameters(args.path, **boto_args)
-    else:
-        with open(args.config, 'rt') as f:
-            config = yaml.safe_load(f.read())
-        config = _decrypt_item(config, stage=args.stage, key='', render='ssm')
-        write_parameters(config['config'], config['keys'][args.stage],
-                         args.path, **boto_args)
+    output_file.write(rendered_config)
 
 
 def parse_args(args):
@@ -333,17 +319,12 @@ def parse_args(args):
                                help='Use JSON format (default is YAML)')
     render_parser.add_argument('--encrypt', action='store_true',
                                help='Encrypt rendered configuration')
+    render_parser.add_argument('--python', action='store_true',
+                               help=('Generate Python module with encrypted '
+                                     'configuration'))
     render_parser.add_argument('stage', help='Target stage name')
     render_parser.set_defaults(func=render_config)
 
-    upload_parser = subparsers.add_parser(
-        'upload', help='Upload configuration to SSM')
-    upload_parser.add_argument('stage', help='Target stage name')
-    upload_parser.add_argument('--path', '-p', required=True,
-                               help='Parameter store root path')
-    upload_parser.add_argument('--erase', action='store_true',
-                               help='Only erase existing parameters')
-    upload_parser.set_defaults(func=upload_config)
     return parser.parse_args(args)
 
 

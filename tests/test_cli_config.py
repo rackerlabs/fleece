@@ -67,7 +67,7 @@ def mock_encrypt(text, stage):
 
 
 def mock_decrypt(text, stage):
-    s, d = base64.b64decode(text.encode('utf-8')).decode('utf-8').split(':')
+    s, d = base64.b64decode(text.encode('utf-8')).decode('utf-8').split(':', 1)
     stage = stage.split(':')[-1]
     if s != stage:
         raise RuntimeError('wrong stage:' + s + ':' + stage)
@@ -200,16 +200,34 @@ class TestCLIConfig(unittest.TestCase):
             'password': 'prod-password'
         })
 
-    def test_render_default_stage_yaml_config(self, *args):
+    def test_render_encrypted_config(self, *args):
         stdout = sys.stdout
         sys.stdout = StringIO()
         with open(TEST_CONFIG, 'wt') as f:
             f.write(test_config_file)
-        config.main(['-c', TEST_CONFIG, 'render', 'john:dev'])
+        config.main(['-c', TEST_CONFIG, 'render', 'prod', '--encrypt'])
         sys.stdout.seek(0)
         data = sys.stdout.read()
         sys.stdout = stdout
-        self.assertEqual(yaml.load(data), {
+        self.assertEqual(
+            json.loads(mock_decrypt(json.loads(data)[0], 'prod')), {
+                'foo': 'bar',
+                'password': 'prod-password'
+            })
+
+    def test_render_python_config(self, *args):
+        stdout = sys.stdout
+        sys.stdout = StringIO()
+        with open(TEST_CONFIG, 'wt') as f:
+            f.write(test_config_file)
+        config.main(['-c', TEST_CONFIG, 'render', 'prod', '--python'])
+        sys.stdout.seek(0)
+        data = sys.stdout.read()
+        sys.stdout = stdout
+        g = {'ENCRYPTED_CONFIG': None}
+        exec(data.split('\n')[0], g)
+        data = mock_decrypt(g['ENCRYPTED_CONFIG'][0], 'prod')
+        self.assertEqual(json.loads(data), {
             'foo': 'bar',
-            'password': 'dev-password'
+            'password': 'prod-password'
         })

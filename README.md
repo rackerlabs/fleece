@@ -299,12 +299,12 @@ environments:
 ```
 usage: fleece config [-h] [--config CONFIG] [--username USERNAME]
                      [--apikey APIKEY] [--environments ENVIRONMENTS]
-                     {import,export,edit,render,upload} ...
+                     {import,export,edit,render} ...
 
 Configuration management
 
 positional arguments:
-  {import,export,edit,render,upload}
+  {import,export,edit,render}
                         Sub-command help
     import              Import configuration from stdin
     export              Export configuration to stdout
@@ -346,17 +346,17 @@ stages:                                 # stage definitions
     key: dev-key-here
 config:
   foo: bar                              # plain text variable
-  password:                             # per-environment values, encrypted
-    +dev: :encrypt:my-dev-password
-    +prod: :encrypt:my-prod-password
+  password:                             # per-stage values, encrypted
+    +dev: :encrypt:my-dev-password      # per-stage keys must have a "+" prefix so they are
+    +prod: :encrypt:my-prod-password    # not taken as a nested dict
     +/.*/: :encrypt:my-custom-password
   nested:                               # nested dictionaries
     inner_var: value
     a_list:                             # list of dictionaries
-      - username1:                      # per-environment values, without encryption
+      - username1:                      # per-stage values, without encryption
           +prod: bob-prod
           +/.*/: bob-dev
-        password1:                      # per-environment values, encrypted
+        password1:                      # per-stage values, encrypted
           +prod: :encrypt:bob-prod-pw
           +/.*/: :encrypt:bob-dev-pw
       - username2: user2
@@ -365,7 +365,11 @@ config:
           +/.*/: :encrypt:dev-pw2
 ```
 
-Any variables that are sensitive and need to be encrypted need to have per-environment values, and these must have the `:encrypt:` prefix so that fleece knows to encrypt them when the configuration is imported.
+The `stages` section defines the available stages, along with their association to an environment and a KMS key. The environment, which must be defined in the `environments.yml`, links the stage to a AWS account. The KMS key can be given as an ARN or as an alias. The alias can be given with or without the `alias/` prefix. Stage names can be given explicitly or as a regular expression (surrounded by `/`s). When fleece needs to match a stage name given in one of its commands, it will first attempt to do an equality match, and only when that fails it will try the regular expression based stage names. The regular expression stage names are evaluated in random order until one succeeds, so it is important to avoid ambiguities in the regex patterns.
+
+The `config` section is where configuration variables are defined. A standard key/value pair in this section represents a plaintext variable that will be made available for all stages. A variable can be given per-stage values by making its value a sub-dictionary where the keys are the stage names prefixed by `+`. Regex patterns for stage names are supported here as well.
+
+Any variables that are sensitive and need to be encrypted must have per-stage values, and these values must have the `:encrypt:` prefix so that fleece knows to encrypt them when the configuration is imported and stored in `config.yml`.
 
 The available sub-commands are:
 
@@ -389,24 +393,24 @@ The encrypted configuration consists on a list of encrypted buffers that need to
 
 ```python
 ENCRYPTED_CONFIG = ['... encrypted blob here ...']                                         
-import base64                                                                                                           
-import boto3                                                                                                            
-import json                                                                                                             
-                                                                                                                        
-def load_config():                                                                                                      
-    config_json = ''                                                                                                    
-    kms = boto3.client('kms')                                                                                           
-    for buffer in ENCRYPTED_CONFIG:                                                                                     
-        r = kms.decrypt(CiphertextBlob=base64.b64decode(buffer.encode(                                                  
-            'utf-8')))                                                                                                  
-        config_json += r['Plaintext'].decode('utf-8')                                                                   
-    return json.loads(config_json)                                                                                      
-                                                                                                                        
+import base64
+import boto3
+import json
+
+def load_config():
+    config_json = ''
+    kms = boto3.client('kms')
+    for buffer in ENCRYPTED_CONFIG:
+        r = kms.decrypt(CiphertextBlob=base64.b64decode(buffer.encode(
+            'utf-8')))
+        config_json += r['Plaintext'].decode('utf-8')
+    return json.loads(config_json)
+
 CONFIG = load_config()
 ```
 
-If this is saved as `config.py` in the source directory, the configuration can be imported with:
+If this is saved as `fleece_config.py` in the source directory, the configuration can be imported with:
 
 ```python
-from config import CONFIG
+from fleece_config import CONFIG
 ```

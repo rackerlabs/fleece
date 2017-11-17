@@ -3,6 +3,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -53,30 +54,54 @@ class AWSCredentialCache(object):
 
 STATE = {
     'awscreds': None,  # cache of aws credentials
-    'keys': {}         # kms key for each environment
+    'stages': {}       # environment/key assignments for each stage
 }
 
 
-def _get_kms_key_id(key):
+def _get_stage_data(stage, data=None):
+    if not data:
+        data = STATE['stages']
+    if stage in data:
+        return data[stage]
+    for s in data:
+        if s.startswith('/'):
+            if re.fullmatch(s.split('/')[1], stage):
+                return data[s]
+    raise ValueError('No match for stage "{}"'.format(stage))
+
+
+def _get_kms_key(stage):
+    stage_data = _get_stage_data(stage)
+    try:
+        key = stage_data['key']
+    except IndexError:
+        raise ValueError('No key defined for stage "{}"'.format(stage))
     if key.startswith('alias/') or key.startswith('arn:'):
         return key
     return 'alias/' + key
 
 
-def _encrypt_text(text, environment):
-    if environment not in STATE['keys']:
-        raise ValueError('No key defined for environment "{}"'.format(
-            environment))
+def _get_environment(stage):
+    stage_data = _get_stage_data(stage)
+    try:
+        return stage_data['environment']
+    except IndexError:
+        raise ValueError('No environment defined for stage "{}"'.format(stage))
+
+
+def _encrypt_text(text, stage):
+    key = _get_kms_key(stage)
+    environment = _get_environment(stage)
     awscreds = STATE['awscreds'].get_awscreds(environment)
     kms = boto3.client('kms', aws_access_key_id=awscreds['accessKeyId'],
                        aws_secret_access_key=awscreds['secretAccessKey'],
                        aws_session_token=awscreds['sessionToken'])
-    r = kms.encrypt(KeyId=_get_kms_key_id(STATE['keys'][environment]),
-                    Plaintext=text.encode('utf-8'))
+    r = kms.encrypt(KeyId=key, Plaintext=text.encode('utf-8'))
     return base64.b64encode(r['CiphertextBlob']).decode('utf-8')
 
 
-def _decrypt_text(text, environment):
+def _decrypt_text(text, stage):
+    environment = _get_environment(stage)
     awscreds = STATE['awscreds'].get_awscreds(environment)
     kms = boto3.client('kms', aws_access_key_id=awscreds['accessKeyId'],
                        aws_secret_access_key=awscreds['secretAccessKey'],
@@ -131,7 +156,7 @@ def import_config(args, input_file=None):
         # YAML input
         config = yaml.round_trip_load(source)
 
-    STATE['keys'] = config['keys']
+    STATE['stages'] = config['stages']
     config['config'] = _encrypt_dict(config['config'])
     with open(args.config, 'wt') as f:
         if config:
@@ -154,9 +179,11 @@ def _decrypt_item(data, stage, key, render):
                                  'variables'.format(', '.join(data.keys)))
         if render:
             if per_stage[0]:
-                if '+' + stage in data:
+                stage_data = _get_stage_data(
+                    stage, data={k[1:]: v for k, v in data.items()})
+                if stage_data:
                     data = _decrypt_item(
-                        data.get(stage, data['+' + stage]),
+                        data.get(stage, stage_data),
                         stage=stage, key=key, render=render)
                 else:
                     raise ValueError('Key "{}" has no value for stage '
@@ -193,11 +220,17 @@ def export_config(args, output_file=None):
     if os.path.exists(args.config):
         with open(args.config, 'rt') as f:
             config = yaml.round_trip_load(f.read())
+        STATE['stages'] = config['stages']
         config['config'] = _decrypt_dict(config['config'])
     else:
-        config = {'keys': {env['name']: 'enter-key-name-here'
-                           for env in STATE['awscreds'].environments},
-                  'config': {}}
+        config = {
+            'stages': {
+                env['name']: {
+                    'environment': env['name'],
+                    'key': 'enter-key-name-here'
+                } for env in STATE['awscreds'].environments
+            },
+            'config': {}}
     if args.json:
         output_file.write(json.dumps(config, indent=4))
     elif config:
@@ -206,7 +239,7 @@ def export_config(args, output_file=None):
 
 def edit_config(args):
     filename = '.fleece_edit_tmp'
-    skip_import = False
+    skip_export = False
 
     if os.path.exists(filename):
         p = input('A previously interrupted edit session was found. Do you '
@@ -214,9 +247,9 @@ def edit_config(args):
         if p.lower() == 'a':
             os.unlink(filename)
         elif p.lower() == 'c':
-            skip_import = True
+            skip_export = True
 
-    if not skip_import:
+    if not skip_export:
         with open(filename, 'wt') as fd:
             export_config(args, output_file=fd)
 
@@ -231,10 +264,13 @@ def edit_config(args):
 def render_config(args, output_file=None):
     if not output_file:
         output_file = sys.stdout
+    stage = args.stage
+    env = args.environment or stage
     with open(args.config, 'rt') as f:
         config = yaml.safe_load(f.read())
-    config['config'] = _decrypt_item(config['config'], stage=args.environment,
-                                     key='', render=True)
+    STATE['stages'] = config['stages']
+    config['config'] = _decrypt_item(config['config'], stage=stage, key='',
+                                     render=True)
     if args.json or args.encrypt or args.python:
         rendered_config = json.dumps(
             config['config'], indent=None if args.encrypt else 4,
@@ -244,10 +280,10 @@ def render_config(args, output_file=None):
         yaml.round_trip_dump(config['config'], buf)
         rendered_config = buf.getvalue()
     if args.encrypt or args.python:
-        STATE['keys'] = config['keys']
+        STATE['stages'] = config['stages']
         encrypted_config = []
         while rendered_config:
-            buffer = _encrypt_text(rendered_config[:4096], args.environment)
+            buffer = _encrypt_text(rendered_config[:4096], env)
             rendered_config = rendered_config[4096:]
             encrypted_config.append(buffer)
 
@@ -315,6 +351,9 @@ def parse_args(args):
 
     render_parser = subparsers.add_parser(
         'render', help='Render configuration for an environment')
+    render_parser.add_argument('--environment', '-e',
+                               help=('Environment name (default is the '
+                                     'stage name'))
     render_parser.add_argument('--json', action='store_true',
                                help='Use JSON format (default is YAML)')
     render_parser.add_argument('--encrypt', action='store_true',
@@ -322,7 +361,7 @@ def parse_args(args):
     render_parser.add_argument('--python', action='store_true',
                                help=('Generate Python module with encrypted '
                                      'configuration'))
-    render_parser.add_argument('environment', help='Target environment name')
+    render_parser.add_argument('stage', help='Target stage name')
     render_parser.set_defaults(func=render_config)
 
     return parser.parse_args(args)

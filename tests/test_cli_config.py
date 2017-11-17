@@ -2,6 +2,7 @@ import six
 import base64
 import json
 import os
+import re
 import sys
 import unittest
 
@@ -12,26 +13,45 @@ from fleece.cli.config import config
 if six.PY2:
     import mock
     from StringIO import StringIO
+
+    # fullmatch is not available on PY2
+    def fullmatch(pattern, text, *args, **kwargs):
+        match = re.match(pattern, text, *args, **kwargs)
+        return match if match.group(0) == text else None
+
+    re.fullmatch = fullmatch
 else:
     from unittest import mock
     from io import StringIO
 
 TEST_CONFIG = '.config.tmp'
 
-test_yaml_config = '''keys:
-  dev: dev-key
-  prod: prod-key
+test_yaml_config = '''stages:
+  /.*/:
+    environment: dev
+    key: dev-key
+  prod:
+    environment: prod
+    key: prod-key
 config:
   foo: bar
   password:
     +dev: :encrypt:dev-password
     +prod: :encrypt:prod-password
+    +foo: :encrypt:foo-password
+    +/ba.*/: :encrypt:bar-password
 '''
 
 test_json_config = '''{
-    "keys": {
-        "dev": "dev-key",
-        "prod": "prod-key"
+    "stages": {
+        "/.*/": {
+            "environment": "dev",
+            "key": "dev-key"
+        },
+        "prod": {
+            "environment": "prod",
+            "key": "prod-key"
+        }
     },
     "config": {
         "foo": "bar",
@@ -43,14 +63,20 @@ test_json_config = '''{
 }
 '''
 
-test_config_file = '''keys:
-  dev: dev-key
-  prod: prod-key
+test_config_file = '''stages:
+  /.*/:
+    environment: dev
+    key: dev-key
+  prod:
+    environment: prod
+    key: prod-key
 config:
   foo: bar
   password:
     +dev: :decrypt:ZGV2OmRldi1wYXNzd29yZA==
-    +prod: :decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk'''
+    +prod: :decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk
+    +foo: :decrypt:Zm9vOmZvby1wYXNzd29yZA==
+    +/ba.*/: :decrypt:L2JhLiovOmJhci1wYXNzd29yZA=='''
 
 
 test_environments = {
@@ -69,7 +95,7 @@ def mock_encrypt(text, stage):
 def mock_decrypt(text, stage):
     s, d = base64.b64decode(text.encode('utf-8')).decode('utf-8').split(':', 1)
     stage = stage.split(':')[-1]
-    if s != stage:
+    if s != stage and not re.fullmatch(s.split('/')[1], stage):
         raise RuntimeError('wrong stage:' + s + ':' + stage)
     return d
 
@@ -91,15 +117,18 @@ class TestCLIConfig(unittest.TestCase):
         with open(TEST_CONFIG, 'rt') as f:
             data = yaml.load(f.read())
         self.assertEqual(data, {
-            'keys': {
-                'dev': 'dev-key',
-                'prod': 'prod-key'
+            'stages': {
+                '/.*/': {'environment': 'dev', 'key': 'dev-key'},
+                'prod': {'environment': 'prod', 'key': 'prod-key'}
             },
             'config': {
                 'foo': 'bar',
                 'password': {
                     '+dev': ':decrypt:ZGV2OmRldi1wYXNzd29yZA==',
-                    '+prod': ':decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk'
+                    '+prod': ':decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk',
+                    '+foo': ':decrypt:Zm9vOmZvby1wYXNzd29yZA==',
+                    '+/ba.*/': ':decrypt:L2JhLiovOmJhci1wYXNzd29yZA=='
+
                 }
             }
         })
@@ -113,9 +142,9 @@ class TestCLIConfig(unittest.TestCase):
         with open(TEST_CONFIG, 'rt') as f:
             data = yaml.load(f.read())
         self.assertEqual(data, {
-            'keys': {
-                'dev': 'dev-key',
-                'prod': 'prod-key'
+            'stages': {
+                '/.*/': {'environment': 'dev', 'key': 'dev-key'},
+                'prod': {'environment': 'prod', 'key': 'prod-key'}
             },
             'config': {
                 'foo': 'bar',
@@ -136,15 +165,17 @@ class TestCLIConfig(unittest.TestCase):
         data = sys.stdout.read()
         sys.stdout = stdout
         self.assertEqual(yaml.load(data), {
-            'keys': {
-                'dev': 'dev-key',
-                'prod': 'prod-key'
+            'stages': {
+                '/.*/': {'environment': 'dev', 'key': 'dev-key'},
+                'prod': {'environment': 'prod', 'key': 'prod-key'}
             },
             'config': {
                 'foo': 'bar',
                 'password': {
                     '+dev': ':encrypt:dev-password',
-                    '+prod': ':encrypt:prod-password'
+                    '+prod': ':encrypt:prod-password',
+                    '+foo': ':encrypt:foo-password',
+                    '+/ba.*/': ':encrypt:bar-password'
                 }
             }
         })
@@ -159,15 +190,17 @@ class TestCLIConfig(unittest.TestCase):
         data = sys.stdout.read()
         sys.stdout = stdout
         self.assertEqual(json.loads(data), {
-            'keys': {
-                'dev': 'dev-key',
-                'prod': 'prod-key'
+            'stages': {
+                '/.*/': {'environment': 'dev', 'key': 'dev-key'},
+                'prod': {'environment': 'prod', 'key': 'prod-key'}
             },
             'config': {
                 'foo': 'bar',
                 'password': {
                     '+dev': ':encrypt:dev-password',
-                    '+prod': ':encrypt:prod-password'
+                    '+prod': ':encrypt:prod-password',
+                    '+foo': ':encrypt:foo-password',
+                    '+/ba.*/': ':encrypt:bar-password'
                 }
             }
         })
@@ -184,6 +217,34 @@ class TestCLIConfig(unittest.TestCase):
         self.assertEqual(yaml.load(data), {
             'foo': 'bar',
             'password': 'dev-password'
+        })
+
+    def test_render_yaml_config_custom(self, *args):
+        stdout = sys.stdout
+        sys.stdout = StringIO()
+        with open(TEST_CONFIG, 'wt') as f:
+            f.write(test_config_file)
+        config.main(['-c', TEST_CONFIG, 'render', 'foo'])
+        sys.stdout.seek(0)
+        data = sys.stdout.read()
+        sys.stdout = stdout
+        self.assertEqual(yaml.load(data), {
+            'foo': 'bar',
+            'password': 'foo-password'
+        })
+
+    def test_render_yaml_config_custom_regex(self, *args):
+        stdout = sys.stdout
+        sys.stdout = StringIO()
+        with open(TEST_CONFIG, 'wt') as f:
+            f.write(test_config_file)
+        config.main(['-c', TEST_CONFIG, 'render', 'baz'])
+        sys.stdout.seek(0)
+        data = sys.stdout.read()
+        sys.stdout = stdout
+        self.assertEqual(yaml.load(data), {
+            'foo': 'bar',
+            'password': 'bar-password'
         })
 
     def test_render_json_config(self, *args):

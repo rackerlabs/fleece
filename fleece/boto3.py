@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 
 import boto3 as real_boto3
+from boto3 import docs, exceptions, logging, resources, session  # noqa: F401
+from boto3 import set_stream_logger, setup_default_session  # noqa: F401
 from botocore.client import Config
 
 DEFAULT_TIMEOUT = None

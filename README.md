@@ -62,6 +62,8 @@ boto3.set_default_timeout(15)
 lambda = boto3.client('lambda')
 ```
 
+You can import other boto3 attributes, but only `client()` and `resource()` accept the additional arguments documented in this section.
+
 ## requests wrappers
 
 This project also includes a wrapper for the requests package. When using `fleece.requests`, convenient access to set timeouts and retries is provided.

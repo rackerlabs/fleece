@@ -184,6 +184,9 @@ def run(args):
     for line in iter(process.stdout.readline, ''):
         sys.stdout.write(line)
 
+    return_code = process.wait()
+    sys.exit(return_code)
+
 
 def main(args):
     parsed_args = parse_args(args)

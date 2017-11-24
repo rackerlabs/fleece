@@ -1,5 +1,8 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 import argparse
+import code
 import os
 import subprocess
 import sys
@@ -7,6 +10,17 @@ import sys
 import boto3
 import requests
 import yaml
+
+try:
+    import bpython
+    have_bpython = True
+except ImportError:
+    have_bpython = False
+try:
+    from IPython import start_ipython
+    have_ipython = True
+except ImportError:
+    have_ipython = False
 
 
 RS_AUTH_ERROR = 'Rackspace authentication failed:\nStatus: {}\nResponse: {}'
@@ -23,7 +37,7 @@ FAWS_API_ERROR = ('Could not fetch AWS Account credentials.\nStatus: {}\n'
                   'Reason: {}')
 
 
-def parse_args(args):
+def get_parser():
     parser = argparse.ArgumentParser(
         prog='fleece run',
         description=('Run command in environment with AWS credentials from '
@@ -50,8 +64,21 @@ def parse_args(args):
     parser.add_argument('--role', '-r', type=str,
                         help=('Role name to assume after obtaining credentials'
                               ' from FAWS API'))
-    parser.add_argument('command', type=str, help=('Command to execute'))
-    return parser.parse_args(args)
+    parser.add_argument('--interactive', '-i',
+                        action='store_true', default=False,
+                        help=('Launch an interactive Python shell. Will use '
+                              'the more advanced shells if they are available '
+                              '(bpython or IPyhon).'))
+    parser.add_argument('--region', type=str,
+                        help='Set default AWS region for the environment.')
+    parser.add_argument('command', type=str, nargs='?',
+                        help=('Command to execute. Required in '
+                              'non-interactive mode.'))
+    return parser
+
+
+def parse_args(args):
+    return get_parser().parse_args(args)
 
 
 def assume_role(credentials, account, role):
@@ -168,13 +195,27 @@ def run(args):
     else:
         aws_credentials = faws_credentials
 
+    if args.interactive:
+        run_interactive(aws_credentials, args.region)
+    else:
+        run_script(args.command, aws_credentials, args.region)
+
+
+def run_script(command, aws_credentials, region=None):
+    if command is None:
+        get_parser().print_help()
+        print('Command is a required argument in non-interactive mode.')
+        sys.exit(1)
+
     env = os.environ.copy()
     env['AWS_ACCESS_KEY_ID'] = aws_credentials['accessKeyId']
     env['AWS_SECRET_ACCESS_KEY'] = aws_credentials['secretAccessKey']
     env['AWS_SESSION_TOKEN'] = aws_credentials['sessionToken']
+    if region:
+        env['AWS_DEFAULT_REGION'] = region
 
     process = subprocess.Popen(
-        args.command,
+        command,
         env=env,
         shell=True,
         stderr=subprocess.STDOUT,
@@ -186,6 +227,22 @@ def run(args):
 
     return_code = process.wait()
     sys.exit(return_code)
+
+
+def run_interactive(aws_credentials, region=None):
+    os.environ['AWS_ACCESS_KEY_ID'] = aws_credentials['accessKeyId']
+    os.environ['AWS_SECRET_ACCESS_KEY'] = aws_credentials['secretAccessKey']
+    os.environ['AWS_SESSION_TOKEN'] = aws_credentials['sessionToken']
+    if region:
+        os.environ['AWS_DEFAULT_REGION'] = region
+
+    # Select Python shell
+    if have_bpython:
+        bpython.embed()
+    elif have_ipython:
+        start_ipython(argv=[])
+    else:
+        code.interact()
 
 
 def main(args):

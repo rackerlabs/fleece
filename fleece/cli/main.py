@@ -1,7 +1,7 @@
 import sys
 import pkg_resources
 
-commands = ['build', 'run', 'config', 'shell']
+commands = ['build', 'run', 'config']
 
 
 def print_help():

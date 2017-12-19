@@ -2,10 +2,14 @@
 import argparse
 from datetime import datetime
 import hashlib
+from io import BytesIO
 import os
 import subprocess
 import sys
+import tarfile
+
 import docker
+from docker import errors
 
 build_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -53,6 +57,26 @@ def get_version_hash():
         sha1 = None
 
     return sha1
+
+
+def clean_up_container(container):
+    try:
+        container.remove()
+    except docker.errors.APIError as e:
+        if 'Failed to destroy btrfs snapshot' in str(e):
+            # circle-ci builds do not get permissions that allow them to remove
+            # containers, see https://circleci.com/docs/1.0/docker-btrfs-error/
+            pass
+        else:
+            raise
+
+
+def retrieve_archive(container):
+    stream, stat = container.get_archive('/dist/lambda_function.zip')
+    raw_data = stream.read()
+    f = BytesIO(raw_data)
+    with tarfile.open(fileobj=f, mode='r') as t:
+        t.extractall(path='dist/')
 
 
 def build(args):
@@ -104,29 +128,67 @@ def build(args):
     with open(requirements_path, 'rb') as fp:
         dependencies_sha1 = hashlib.sha1(fp.read()).hexdigest()
 
+    # Set up volumes
+
+    src = docker_api.containers.create(
+        'alpine:3.4',
+        '/bin/true',
+        volumes=[
+            '/src',
+            '/requirements',
+            '/dist'
+        ]
+    )
+
+    stream = BytesIO()
+
+    with tarfile.open('src.tar', mode='w') as tar:
+        tar.add(src_dir, arcname=os.path.sep)
+
+    with tarfile.open(fileobj=stream, mode='w') as tar:
+        tar.add(src_dir, arcname=os.path.sep)
+    stream.seek(0)
+    src.put_archive(data=stream, path='/src')
+
+    stream_1 = BytesIO()
+
+    with tarfile.open('req.tar', mode='w') as tar:
+        tar.add(requirements_path, arcname='requirements.txt')
+
+    with tarfile.open(fileobj=stream_1, mode='w') as tar:
+        tar.add(requirements_path, arcname='requirements.txt')
+
+    stream_1.seek(0)
+    src.put_archive(data=stream_1, path='/requirements')
+
+    try:
+        build_cache = docker_api.containers.get('build_cache')
+    except errors.NotFound:
+        build_cache = docker_api.containers.create(
+            'alpine:3.4',
+            '/bin/true',
+            name='build_cache',
+            volumes=[
+                '/build_cache',
+            ]
+        )
+
     container = docker_api.containers.run(
         image=image.tags[0],
         environment={'DEPENDENCIES_SHA': dependencies_sha1,
                      'VERSION_HASH': get_version_hash(),
                      'BUILD_TIME': datetime.utcnow().isoformat(),
                      'REBUILD_DEPENDENCIES': '1' if args.rebuild else '0'},
-        volumes={src_dir: {'bind': '/src'},
-                 requirements_path: {'bind': '/requirements.txt'},
-                 dist_dir: {'bind': '/dist'},
-                 build_cache_dir: {'bind': '/build_cache'}},
+        volumes_from=[src.id, build_cache.id],
         detach=True)
     for line in container.logs(stream=True, follow=True):
         sys.stdout.write(line.decode('utf-8'))
     exit_code = container.wait()
-    try:
-        container.remove()
-    except docker.errors.APIError as e:
-        if 'Failed to destroy btrfs snapshot' in str(e):
-            # circle-ci builds do not get permissions that allow them to remove
-            # containers, see https://circleci.com/docs/1.0/docker-btrfs-error/
-            pass
-        else:
-            raise
+
+    retrieve_archive(container)
+
+    clean_up_container(container)
+    clean_up_container(src)
 
     if exit_code:
         print('Error: build ended with exit code = {}.'.format(exit_code))

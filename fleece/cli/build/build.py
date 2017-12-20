@@ -59,9 +59,9 @@ def get_version_hash():
     return sha1
 
 
-def clean_up_container(container):
+def clean_up_container(container, clean_up_volumes=True):
     try:
-        container.remove()
+        container.remove(v=clean_up_volumes)
     except docker.errors.APIError as e:
         if 'Failed to destroy btrfs snapshot' in str(e):
             # circle-ci builds do not get permissions that allow them to remove
@@ -71,12 +71,35 @@ def clean_up_container(container):
             raise
 
 
-def retrieve_archive(container):
+def retrieve_archive(container, dist_dir):
     stream, stat = container.get_archive('/dist/lambda_function.zip')
     raw_data = stream.read()
     f = BytesIO(raw_data)
     with tarfile.open(fileobj=f, mode='r') as t:
-        t.extractall(path='dist/')
+        t.extractall(path=dist_dir)
+
+
+def put_files(container, src_dir, path, single_file_name=None):
+    stream = BytesIO()
+
+    with tarfile.open(fileobj=stream, mode='w') as tar:
+        if single_file_name:
+            arcname = single_file_name
+        else:
+            arcname = os.path.sep
+        tar.add(src_dir, arcname=arcname)
+    stream.seek(0)
+    container.put_archive(data=stream, path=path)
+
+
+def create_volume_container(**kwargs):
+    api = docker.from_env(version='auto')
+    container = api.containers.create(
+        'alpine:3.4',
+        '/bin/true',
+        **kwargs
+    )
+    return container
 
 
 def build(args):
@@ -129,50 +152,19 @@ def build(args):
         dependencies_sha1 = hashlib.sha1(fp.read()).hexdigest()
 
     # Set up volumes
+    src = create_volume_container(volumes=['/src', '/requirements', '/dist'])
 
-    src = docker_api.containers.create(
-        'alpine:3.4',
-        '/bin/true',
-        volumes=[
-            '/src',
-            '/requirements',
-            '/dist'
-        ]
-    )
-
-    stream = BytesIO()
-
-    with tarfile.open('src.tar', mode='w') as tar:
-        tar.add(src_dir, arcname=os.path.sep)
-
-    with tarfile.open(fileobj=stream, mode='w') as tar:
-        tar.add(src_dir, arcname=os.path.sep)
-    stream.seek(0)
-    src.put_archive(data=stream, path='/src')
-
-    stream_1 = BytesIO()
-
-    with tarfile.open('req.tar', mode='w') as tar:
-        tar.add(requirements_path, arcname='requirements.txt')
-
-    with tarfile.open(fileobj=stream_1, mode='w') as tar:
-        tar.add(requirements_path, arcname='requirements.txt')
-
-    stream_1.seek(0)
-    src.put_archive(data=stream_1, path='/requirements')
-
+    # We want our build cache to remain over time if possible. Giving it a name
     try:
-        build_cache = docker_api.containers.get('build_cache')
+        build_cache = docker_api.containers.get(f'{service_name}-build_cache')
     except errors.NotFound:
-        build_cache = docker_api.containers.create(
-            'alpine:3.4',
-            '/bin/true',
-            name='build_cache',
-            volumes=[
-                '/build_cache',
-            ]
-        )
+        build_cache = create_volume_container(name=f'{service_name}-build_cache', volumes=['/build_cache'])
 
+    # Inject our source and requirements
+    put_files(src, src_dir, '/src')
+    put_files(src, requirements_path, '/requirements', 'requirements.txt')
+
+    # Run Builder
     container = docker_api.containers.run(
         image=image.tags[0],
         environment={'DEPENDENCIES_SHA': dependencies_sha1,
@@ -185,14 +177,16 @@ def build(args):
         sys.stdout.write(line.decode('utf-8'))
     exit_code = container.wait()
 
-    retrieve_archive(container)
-
-    clean_up_container(container)
-    clean_up_container(src)
-
     if exit_code:
         print('Error: build ended with exit code = {}.'.format(exit_code))
     else:
+        # Pull out our built zip
+        retrieve_archive(container, dist_dir)
+
+        # Clean up generated containers
+        clean_up_container(container)
+        clean_up_container(src)
+
         print('Build completed successfully.')
     sys.exit(exit_code)
 

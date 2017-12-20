@@ -92,6 +92,11 @@ def put_files(container, src_dir, path, single_file_name=None):
     container.put_archive(data=stream, path=path)
 
 
+def create_volume(name):
+    api = docker.from_env(version='auto')
+    api.volumes.create(name)
+
+
 def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):
     api = docker.from_env(version='auto')
     api.images.pull(image)
@@ -153,17 +158,29 @@ def build(args):
         dependencies_sha1 = hashlib.sha1(fp.read()).hexdigest()
 
     # Set up volumes
-    src = create_volume_container(volumes=['/src', '/requirements', '/dist'])
+    create_volume(f'{service_name}-src')
+    create_volume(f'{service_name}-requirements')
+    create_volume(f'{service_name}-dist')
+
+    src = create_volume_container(
+        volumes=[
+            f'{service_name}-src:/src',
+            f'{service_name}-requirements:/requirements',
+            f'{service_name}-dist:/dist']
+    )
 
     # We want our build cache to remain over time if possible. Giving it a name
     try:
         build_cache = docker_api.containers.get(f'{service_name}-build_cache')
     except errors.NotFound:
-        build_cache = create_volume_container(name=f'{service_name}-build_cache', volumes=['/build_cache'])
+        create_volume(f'{service_name}-build_cache')
+        build_cache = create_volume_container(
+            name=f'{service_name}-build_cache',
+            volumes=[f'{service_name}-build_cache:/build_cache'])
 
     # Inject our source and requirements
     put_files(src, src_dir, '/src')
-    put_files(src, requirements_path, '/requirements', 'requirements.txt')
+    put_files(src, requirements_path, '/requirements', single_file_name='requirements.txt')
 
     # Run Builder
     container = docker_api.containers.run(

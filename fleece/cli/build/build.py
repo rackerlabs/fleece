@@ -92,11 +92,12 @@ def put_files(container, src_dir, path, single_file_name=None):
     container.put_archive(data=stream, path=path)
 
 
-def create_volume_container(**kwargs):
+def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):
     api = docker.from_env(version='auto')
+    api.images.pull(image)
     container = api.containers.create(
-        'alpine:3.4',
-        '/bin/true',
+        image,
+        command,
         **kwargs
     )
     return container

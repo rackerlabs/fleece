@@ -158,29 +158,34 @@ def build(args):
         dependencies_sha1 = hashlib.sha1(fp.read()).hexdigest()
 
     # Set up volumes
-    create_volume(f'{service_name}-src')
-    create_volume(f'{service_name}-requirements')
-    create_volume(f'{service_name}-dist')
+    src_name = '{}-src'.format(service_name)
+    req_name = '{}-requirements'.format(service_name)
+    dist_name = '{}-dist'.format(service_name)
+    create_volume(src_name)
+    create_volume(req_name)
+    create_volume(dist_name)
 
     src = create_volume_container(
         volumes=[
-            f'{service_name}-src:/src',
-            f'{service_name}-requirements:/requirements',
-            f'{service_name}-dist:/dist']
+            '{}:/src'.format(src_name),
+            '{}:/requirements'.format(req_name),
+            '{}:/dist'.format(dist_name)]
     )
 
-    # We want our build cache to remain over time if possible. Giving it a name
+    # We want our build cache to remain over time if possible.
+    build_cache_name = '{}-build_cache'.format(service_name)
     try:
-        build_cache = docker_api.containers.get(f'{service_name}-build_cache')
+        build_cache = docker_api.containers.get(build_cache_name)
     except errors.NotFound:
-        create_volume(f'{service_name}-build_cache')
+        create_volume(build_cache_name)
         build_cache = create_volume_container(
-            name=f'{service_name}-build_cache',
-            volumes=[f'{service_name}-build_cache:/build_cache'])
+            name=build_cache_name,
+            volumes=['{}:/build_cache'.format(build_cache_name)])
 
     # Inject our source and requirements
     put_files(src, src_dir, '/src')
-    put_files(src, requirements_path, '/requirements', single_file_name='requirements.txt')
+    put_files(src, requirements_path, '/requirements',
+              single_file_name='requirements.txt')
 
     # Run Builder
     container = docker_api.containers.run(

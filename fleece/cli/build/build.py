@@ -2,10 +2,14 @@
 import argparse
 from datetime import datetime
 import hashlib
+from io import BytesIO
 import os
 import subprocess
 import sys
+import tarfile
+
 import docker
+from docker import errors
 
 build_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -53,6 +57,55 @@ def get_version_hash():
         sha1 = None
 
     return sha1
+
+
+def clean_up_container(container, clean_up_volumes=True):
+    try:
+        container.remove(v=clean_up_volumes)
+    except docker.errors.APIError as e:
+        if 'Failed to destroy btrfs snapshot' in str(e):
+            # circle-ci builds do not get permissions that allow them to remove
+            # containers, see https://circleci.com/docs/1.0/docker-btrfs-error/
+            pass
+        else:
+            raise
+
+
+def retrieve_archive(container, dist_dir):
+    stream, stat = container.get_archive('/dist/lambda_function.zip')
+    raw_data = stream.read()
+    f = BytesIO(raw_data)
+    with tarfile.open(fileobj=f, mode='r') as t:
+        t.extractall(path=dist_dir)
+
+
+def put_files(container, src_dir, path, single_file_name=None):
+    stream = BytesIO()
+
+    with tarfile.open(fileobj=stream, mode='w') as tar:
+        if single_file_name:
+            arcname = single_file_name
+        else:
+            arcname = os.path.sep
+        tar.add(src_dir, arcname=arcname)
+    stream.seek(0)
+    container.put_archive(data=stream, path=path)
+
+
+def create_volume(name):
+    api = docker.from_env(version='auto')
+    api.volumes.create(name)
+
+
+def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):
+    api = docker.from_env(version='auto')
+    api.images.pull(image)
+    container = api.containers.create(
+        image,
+        command,
+        **kwargs
+    )
+    return container
 
 
 def build(args):
@@ -104,33 +157,59 @@ def build(args):
     with open(requirements_path, 'rb') as fp:
         dependencies_sha1 = hashlib.sha1(fp.read()).hexdigest()
 
+    # Set up volumes
+    src_name = '{}-src'.format(service_name)
+    req_name = '{}-requirements'.format(service_name)
+    dist_name = '{}-dist'.format(service_name)
+    create_volume(src_name)
+    create_volume(req_name)
+    create_volume(dist_name)
+
+    src = create_volume_container(
+        volumes=[
+            '{}:/src'.format(src_name),
+            '{}:/requirements'.format(req_name),
+            '{}:/dist'.format(dist_name)]
+    )
+
+    # We want our build cache to remain over time if possible.
+    build_cache_name = '{}-build_cache'.format(service_name)
+    try:
+        build_cache = docker_api.containers.get(build_cache_name)
+    except errors.NotFound:
+        create_volume(build_cache_name)
+        build_cache = create_volume_container(
+            name=build_cache_name,
+            volumes=['{}:/build_cache'.format(build_cache_name)])
+
+    # Inject our source and requirements
+    put_files(src, src_dir, '/src')
+    put_files(src, requirements_path, '/requirements',
+              single_file_name='requirements.txt')
+
+    # Run Builder
     container = docker_api.containers.run(
         image=image.tags[0],
         environment={'DEPENDENCIES_SHA': dependencies_sha1,
                      'VERSION_HASH': get_version_hash(),
                      'BUILD_TIME': datetime.utcnow().isoformat(),
                      'REBUILD_DEPENDENCIES': '1' if args.rebuild else '0'},
-        volumes={src_dir: {'bind': '/src'},
-                 requirements_path: {'bind': '/requirements.txt'},
-                 dist_dir: {'bind': '/dist'},
-                 build_cache_dir: {'bind': '/build_cache'}},
+        volumes_from=[src.id, build_cache.id],
         detach=True)
     for line in container.logs(stream=True, follow=True):
         sys.stdout.write(line.decode('utf-8'))
     exit_code = container.wait()
-    try:
-        container.remove()
-    except docker.errors.APIError as e:
-        if 'Failed to destroy btrfs snapshot' in str(e):
-            # circle-ci builds do not get permissions that allow them to remove
-            # containers, see https://circleci.com/docs/1.0/docker-btrfs-error/
-            pass
-        else:
-            raise
 
     if exit_code:
         print('Error: build ended with exit code = {}.'.format(exit_code))
     else:
+        # Pull out our built zip
+        retrieve_archive(container, dist_dir)
+
+        # Clean up generated containers
+        clean_up_container(container)
+        clean_up_container(src)
+
         print('Build completed successfully.')
     sys.exit(exit_code)
 

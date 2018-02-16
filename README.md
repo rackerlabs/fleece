@@ -298,8 +298,10 @@ environments:
 2017-08-15 20:33:02 bucket5
 ```
 
-Note the `staging` environment example above, which overrides the environment variables
-from where the Rackspace username and API key are sourced.
+Note the `staging` environment example above, which provides a custom pair of
+environment variables from where the Rackspace username and API key are sourced.
+These would be used only if credentials are not explicitly given as part of
+the command.
 
 ### `fleece config`
 

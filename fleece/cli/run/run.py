@@ -30,11 +30,9 @@ def parse_args(args):
                      'Rackspace FAWS API')
     )
     parser.add_argument('--username', '-u', type=str,
-                        default=os.environ.get('RS_USERNAME'),
                         help=('Rackspace username. Can also be set via '
                               'RS_USERNAME environment variable'))
     parser.add_argument('--apikey', '-k', type=str,
-                        default=os.environ.get('RS_API_KEY'),
                         help=('Rackspace API key. Can also be set via '
                               'RS_API_KEY environment variable'))
     parser.add_argument('--config', '-c', type=str,
@@ -164,8 +162,8 @@ def run(args):
     else:
         account = args.account
 
-    username = username or args.username
-    apikey = apikey or args.apikey
+    username = args.username or username or os.environ.get('RS_USERNAME')
+    apikey = args.apikey or apikey or os.environ.get('RS_APIKEY')
     token, tenant = get_rackspace_token(username, apikey)
     faws_credentials = get_aws_creds(account, tenant, token)
 

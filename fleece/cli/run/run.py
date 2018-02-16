@@ -80,9 +80,13 @@ def get_account(config, environment):
         if env.get('name') == environment:
             account = env.get('account')
             role = env.get('role')
+            username = os.environ.get(env.get('rs_username_var')) \
+                if env.get('rs_username_var') else None
+            apikey = os.environ.get(env.get('rs_apikey_var')) \
+                if env.get('rs_apikey_var') else None
     if not account:
         sys.exit(ACCT_NOT_FOUND_ERROR.format(environment))
-    return account, role
+    return account, role, username, apikey
 
 
 def get_aws_creds(account, tenant, token):
@@ -156,11 +160,13 @@ def run(args):
 
     if args.environment:
         config = get_config(args.config)
-        account, role = get_account(config, args.environment)
+        account, role, username, apikey = get_account(config, args.environment)
     else:
         account = args.account
 
-    token, tenant = get_rackspace_token(args.username, args.apikey)
+    username = username or args.username
+    apikey = apikey or args.apikey
+    token, tenant = get_rackspace_token(username, apikey)
     faws_credentials = get_aws_creds(account, tenant, token)
 
     if role:

@@ -282,6 +282,8 @@ environments:
     account: '123456789012'
   - name: staging
     account: '123456789012'
+    rs_username_var: MY_RS_USERNAME
+    rs_apikey_var: MY_RS_APIKEY
   - name: testing
     account: '123456789012'
   - name: production
@@ -295,6 +297,9 @@ environments:
 2017-08-10 17:21:58 bucket4
 2017-08-15 20:33:02 bucket5
 ```
+
+Note the `staging` environment example above, which overrides the environment variables
+from where the Rackspace username and API key are sourced.
 
 ### `fleece config`
 

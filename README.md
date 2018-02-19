@@ -401,7 +401,7 @@ Writes the configuration variables for the given environment to stdout. There ar
 The encrypted configuration consists on a list of encrypted buffers that need to be decrypted and appended. The result of this operation is the JSON plaintext configuration. The following output is the output of `--python`, which includes the decrypt and decode logic:
 
 ```python
-ENCRYPTED_CONFIG = ['... encrypted blob here ...']                                         
+ENCRYPTED_CONFIG = ['... encrypted blob here ...']
 import base64
 import boto3
 import json

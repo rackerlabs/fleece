@@ -283,7 +283,7 @@ environments:
   - name: staging
     account: '123456789012'
     rs_username_var: MY_RS_USERNAME
-    rs_api_key_var: MY_RS_APIKEY
+    rs_apikey_var: MY_RS_APIKEY
   - name: testing
     account: '123456789012'
   - name: production

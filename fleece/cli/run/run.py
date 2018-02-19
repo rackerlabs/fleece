@@ -80,8 +80,8 @@ def get_account(config, environment):
             role = env.get('role')
             username = os.environ.get(env.get('rs_username_var')) \
                 if env.get('rs_username_var') else None
-            apikey = os.environ.get(env.get('rs_api_key_var')) \
-                if env.get('rs_api_key_var') else None
+            apikey = os.environ.get(env.get('rs_apikey_var')) \
+                if env.get('rs_apikey_var') else None
     if not account:
         sys.exit(ACCT_NOT_FOUND_ERROR.format(environment))
     return account, role, username, apikey

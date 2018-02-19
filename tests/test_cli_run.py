@@ -224,7 +224,7 @@ class TestCLIRun(unittest.TestCase):
             '  - name: {}\n'
             '    account: "{}"\n'
             '    rs_username_var: MY_USERNAME\n'
-            '    rs_api_key_var: MY_APIKEY'.format(
+            '    rs_apikey_var: MY_APIKEY'.format(
                 self.environment, self.account))
         account, role, username, apikey = run.get_account(config,
                                                           self.environment)

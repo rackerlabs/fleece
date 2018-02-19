@@ -1,3 +1,4 @@
+import os
 import unittest
 
 from moto import mock_sts
@@ -208,9 +209,31 @@ class TestCLIRun(unittest.TestCase):
 
     def test_get_account(self):
         config = yaml.load(self.config)
-        account, role = run.get_account(config, self.environment)
+        account, role, username, apikey = run.get_account(config,
+                                                          self.environment)
         self.assertEqual(account, self.account)
         self.assertIsNone(role)
+        self.assertIsNone(username)
+        self.assertIsNone(apikey)
+
+    def test_get_account_with_creds(self):
+        os.environ['MY_USERNAME'] = 'foo'
+        os.environ['MY_APIKEY'] = 'bar'
+        config = yaml.load(
+            'environments:\n'
+            '  - name: {}\n'
+            '    account: "{}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                self.environment, self.account))
+        account, role, username, apikey = run.get_account(config,
+                                                          self.environment)
+        del os.environ['MY_USERNAME']
+        del os.environ['MY_APIKEY']
+        self.assertEqual(account, self.account)
+        self.assertIsNone(role)
+        self.assertEqual(username, 'foo')
+        self.assertEqual(apikey, 'bar')
 
     def test_environment_not_found(self):
         with self.assertRaises(SystemExit) as exc:

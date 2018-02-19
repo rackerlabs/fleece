@@ -80,8 +80,8 @@ def get_account(config, environment):
             role = env.get('role')
             username = os.environ.get(env.get('rs_username_var')) \
                 if env.get('rs_username_var') else None
-            apikey = os.environ.get(env.get('rs_apikey_var')) \
-                if env.get('rs_apikey_var') else None
+            apikey = os.environ.get(env.get('rs_api_key_var')) \
+                if env.get('rs_api_key_var') else None
     if not account:
         sys.exit(ACCT_NOT_FOUND_ERROR.format(environment))
     return account, role, username, apikey
@@ -149,8 +149,6 @@ def validate_args(args):
         sys.exit(ENV_AND_ACCT_ERROR)
     if args.environment and args.role:
         sys.exit(ENV_AND_ROLE_ERROR)
-    if not all([args.username, args.apikey]):
-        sys.exit(NO_USER_OR_APIKEY_ERROR)
 
 
 def run(args):
@@ -158,12 +156,16 @@ def run(args):
 
     if args.environment:
         config = get_config(args.config)
-        account, role, username, apikey = get_account(config, args.environment)
+        account, role, cfg_username, cfg_apikey = get_account(
+            config, args.environment)
     else:
+        cfg_username, cfg_apikey = None, None
         account = args.account
 
-    username = args.username or username or os.environ.get('RS_USERNAME')
-    apikey = args.apikey or apikey or os.environ.get('RS_APIKEY')
+    username = args.username or cfg_username or os.environ.get('RS_USERNAME')
+    apikey = args.apikey or cfg_apikey or os.environ.get('RS_API_KEY')
+    if not all([username, apikey]):
+        sys.exit(NO_USER_OR_APIKEY_ERROR)
     token, tenant = get_rackspace_token(username, apikey)
     faws_credentials = get_aws_creds(account, tenant, token)
 

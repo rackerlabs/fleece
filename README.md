@@ -283,7 +283,7 @@ environments:
   - name: staging
     account: '123456789012'
     rs_username_var: MY_RS_USERNAME
-    rs_apikey_var: MY_RS_APIKEY
+    rs_api_key_var: MY_RS_APIKEY
   - name: testing
     account: '123456789012'
   - name: production
@@ -401,7 +401,7 @@ Writes the configuration variables for the given environment to stdout. There ar
 The encrypted configuration consists on a list of encrypted buffers that need to be decrypted and appended. The result of this operation is the JSON plaintext configuration. The following output is the output of `--python`, which includes the decrypt and decode logic:
 
 ```python
-ENCRYPTED_CONFIG = ['... encrypted blob here ...']                                         
+ENCRYPTED_CONFIG = ['... encrypted blob here ...']
 import base64
 import boto3
 import json

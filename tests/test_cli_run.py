@@ -216,8 +216,8 @@ class TestCLIRun(unittest.TestCase):
         config = yaml.load(self.config)
         account, role, username, apikey = run.get_account(config,
                                                           self.environment,
-                                                          None,
-                                                          None)
+                                                          False,
+                                                          False)
         self.assertEqual(account, self.account)
         self.assertIsNone(role)
         self.assertIsNone(username)
@@ -235,8 +235,8 @@ class TestCLIRun(unittest.TestCase):
                 self.environment, self.account))
         account, role, username, apikey = run.get_account(config,
                                                           self.environment,
-                                                          None,
-                                                          None)
+                                                          False,
+                                                          False)
         del os.environ['MY_USERNAME']
         del os.environ['MY_APIKEY']
         self.assertEqual(account, self.account)
@@ -255,7 +255,7 @@ class TestCLIRun(unittest.TestCase):
             '    rs_apikey_var: MY_APIKEY'.format(
                 self.environment, self.account))
         with self.assertRaises(SystemExit) as exc:
-            run.get_account(config, self.environment, None, None)
+            run.get_account(config, self.environment, True, True)
 
         assert (run.NO_USER_ENV_VAR_ERROR.format('MY_USERNAME')
                 in str(exc.exception))
@@ -272,8 +272,8 @@ class TestCLIRun(unittest.TestCase):
                 self.environment, self.account))
 
         _, _, username, apikey = run.get_account(
-            config, self.environment, 'smith', None)
-        self.assertEqual('smith', username)
+            config, self.environment, False, True)
+        self.assertEqual(None, username)
         self.assertEqual('bar', apikey)
 
     def test_get_account_with_missing_apikey(self):
@@ -287,7 +287,7 @@ class TestCLIRun(unittest.TestCase):
             '    rs_apikey_var: MY_APIKEY'.format(
                 self.environment, self.account))
         with self.assertRaises(SystemExit) as exc:
-            run.get_account(config, self.environment, None, None)
+            run.get_account(config, self.environment, True, True)
 
         print(str(exc.exception))
         assert (run.NO_APIKEY_ENV_VAR_ERROR.format('MY_APIKEY')
@@ -305,9 +305,9 @@ class TestCLIRun(unittest.TestCase):
                 self.environment, self.account))
 
         _, _, username, apikey = run.get_account(
-            config, self.environment, None, 'api-key')
+            config, self.environment, True, False)
         self.assertEqual('foo', username)
-        self.assertEqual('api-key', apikey)
+        self.assertEqual(None, apikey)
 
     def test_environment_not_found(self):
         with self.assertRaises(SystemExit) as exc:

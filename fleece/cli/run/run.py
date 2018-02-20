@@ -73,23 +73,27 @@ def assume_role(credentials, account, role):
     }
 
 
-def get_account(config, environment, cli_username, cli_apikey):
-    """Find environment name in config object and return AWS account."""
+def get_account(config, environment, require_username, require_apikey):
+    """Find environment name in config object and return AWS account.
+
+    If `require_username` or `require_apikey` are set, the process will exit
+    if either environment variable can't be found.
+    """
     account = None
     for env in config.get('environments', []):
         if env.get('name') == environment:
             account = env.get('account')
             role = env.get('role')
             if 'rs_username_var' in env:
-                username = os.environ.get(env['rs_username_var'], cli_username)
-                if not username:
+                username = os.environ.get(env['rs_username_var'])
+                if require_username and not username:
                     sys.exit(NO_USER_ENV_VAR_ERROR.format(
                              env['rs_username_var']))
             else:
                 username = None
             if 'rs_apikey_var' in env:
-                apikey = os.environ.get(env['rs_apikey_var'], cli_apikey)
-                if not apikey:
+                apikey = os.environ.get(env['rs_apikey_var'])
+                if require_apikey and not apikey:
                     sys.exit(NO_APIKEY_ENV_VAR_ERROR.format(
                              env['rs_apikey_var']))
             else:
@@ -169,7 +173,11 @@ def run(args):
     if args.environment:
         config = get_config(args.config)
         account, role, cfg_username, cfg_apikey = get_account(
-            config, args.environment, args.username, args.apikey)
+            config,
+            args.environment,
+            require_username=args.username is None,
+            require_apikey=args.apikey is None
+        )
     else:
         cfg_username, cfg_apikey = None, None
         account = args.account

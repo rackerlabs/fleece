@@ -24,6 +24,16 @@ FAWS_API_ERROR = ('Could not fetch AWS Account credentials.\nStatus: {}\n'
 
 
 def parse_args(args):
+
+    for arg in args:
+        try:
+            cutoff = args.index('--')
+            ap_args = args[:cutoff]
+            run_args = args[cutoff + 1:]
+        except ValueError:
+            ap_args = args
+            run_args = None
+
     parser = argparse.ArgumentParser(
         prog='fleece run',
         description=('Run command in environment with AWS credentials from '
@@ -48,8 +58,15 @@ def parse_args(args):
     parser.add_argument('--role', '-r', type=str,
                         help=('Role name to assume after obtaining credentials'
                               ' from FAWS API'))
-    parser.add_argument('command', type=str, help=('Command to execute'))
-    return parser.parse_args(args)
+    if run_args is None:
+        parser.add_argument('command', type=str, help=('Command to execute'))
+
+    args_namespace = parser.parse_args(ap_args)
+
+    if run_args is not None:
+        args_namespace.command = run_args
+
+    return args_namespace
 
 
 def assume_role(credentials, account, role):
@@ -179,19 +196,13 @@ def run(args):
     env['AWS_SECRET_ACCESS_KEY'] = aws_credentials['secretAccessKey']
     env['AWS_SESSION_TOKEN'] = aws_credentials['sessionToken']
 
-    process = subprocess.Popen(
-        args.command,
-        env=env,
-        shell=True,
-        stderr=subprocess.STDOUT,
-        stdout=subprocess.PIPE,
-        universal_newlines=True,
-    )
-    for line in iter(process.stdout.readline, ''):
-        sys.stdout.write(line)
+    if isinstance(args.command, list):
+        command = ' '.join("'{}'".format(c.replace("'", "\\'"))
+                           for c in args.command)
+    else:
+        command = args.command
 
-    return_code = process.wait()
-    sys.exit(return_code)
+    sys.exit(subprocess.call(command, shell=True, env=env))
 
 
 def main(args):

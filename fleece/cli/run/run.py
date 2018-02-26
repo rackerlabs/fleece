@@ -12,6 +12,8 @@ import yaml
 RS_AUTH_ERROR = 'Rackspace authentication failed:\nStatus: {}\nResponse: {}'
 ACCT_NOT_FOUND_ERROR = 'No AWS account for `{}` found in config'
 NO_USER_OR_APIKEY_ERROR = 'You must provide a Rackspace username and apikey'
+NO_USER_ENV_VAR_ERROR = 'Username environment variable `{}`, not found.'
+NO_APIKEY_ENV_VAR_ERROR = 'Api key environment variable `{}` not found.'
 ENV_AND_ACCT_ERROR = 'Use only ONE of `--environment` or `--account`'
 NO_ACCT_OR_ENV_ERROR = 'You must provide either `--environment` or `--account`'
 ENV_AND_ROLE_ERROR = ('`--role` cannot be used with `--environment` '
@@ -88,17 +90,31 @@ def assume_role(credentials, account, role):
     }
 
 
-def get_account(config, environment):
-    """Find environment name in config object and return AWS account."""
+def get_account(config, environment, require_username, require_apikey):
+    """Find environment name in config object and return AWS account.
+
+    If `require_username` or `require_apikey` are set, the process will exit
+    if either environment variable can't be found.
+    """
     account = None
     for env in config.get('environments', []):
         if env.get('name') == environment:
             account = env.get('account')
             role = env.get('role')
-            username = os.environ.get(env.get('rs_username_var')) \
-                if env.get('rs_username_var') else None
-            apikey = os.environ.get(env.get('rs_apikey_var')) \
-                if env.get('rs_apikey_var') else None
+            if 'rs_username_var' in env:
+                username = os.environ.get(env['rs_username_var'])
+                if require_username and not username:
+                    sys.exit(NO_USER_ENV_VAR_ERROR.format(
+                             env['rs_username_var']))
+            else:
+                username = None
+            if 'rs_apikey_var' in env:
+                apikey = os.environ.get(env['rs_apikey_var'])
+                if require_apikey and not apikey:
+                    sys.exit(NO_APIKEY_ENV_VAR_ERROR.format(
+                             env['rs_apikey_var']))
+            else:
+                apikey = None
     if not account:
         sys.exit(ACCT_NOT_FOUND_ERROR.format(environment))
     return account, role, username, apikey
@@ -174,7 +190,11 @@ def run(args):
     if args.environment:
         config = get_config(args.config)
         account, role, cfg_username, cfg_apikey = get_account(
-            config, args.environment)
+            config,
+            args.environment,
+            require_username=args.username is None,
+            require_apikey=args.apikey is None
+        )
     else:
         cfg_username, cfg_apikey = None, None
         account = args.account

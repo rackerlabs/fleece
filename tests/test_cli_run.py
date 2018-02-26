@@ -14,6 +14,11 @@ else:
     from unittest import mock
 
 
+def clear_env_var(name):
+    if name in os.environ:
+        del os.environ[name]
+
+
 class TestCLIRun(unittest.TestCase):
 
     def setUp(self):
@@ -210,7 +215,9 @@ class TestCLIRun(unittest.TestCase):
     def test_get_account(self):
         config = yaml.load(self.config)
         account, role, username, apikey = run.get_account(config,
-                                                          self.environment)
+                                                          self.environment,
+                                                          False,
+                                                          False)
         self.assertEqual(account, self.account)
         self.assertIsNone(role)
         self.assertIsNone(username)
@@ -227,7 +234,9 @@ class TestCLIRun(unittest.TestCase):
             '    rs_apikey_var: MY_APIKEY'.format(
                 self.environment, self.account))
         account, role, username, apikey = run.get_account(config,
-                                                          self.environment)
+                                                          self.environment,
+                                                          False,
+                                                          False)
         del os.environ['MY_USERNAME']
         del os.environ['MY_APIKEY']
         self.assertEqual(account, self.account)
@@ -235,8 +244,73 @@ class TestCLIRun(unittest.TestCase):
         self.assertEqual(username, 'foo')
         self.assertEqual(apikey, 'bar')
 
+    def test_get_account_with_missing_user_name(self):
+        clear_env_var('MY_USERNAME')
+        os.environ['MY_APIKEY'] = 'bar'
+        config = yaml.load(
+            'environments:\n'
+            '  - name: {}\n'
+            '    account: "{}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                self.environment, self.account))
+        with self.assertRaises(SystemExit) as exc:
+            run.get_account(config, self.environment, True, True)
+
+        assert (run.NO_USER_ENV_VAR_ERROR.format('MY_USERNAME')
+                in str(exc.exception))
+
+    def test_get_account_with_cli_user_name(self):
+        clear_env_var('MY_USERNAME')
+        os.environ['MY_APIKEY'] = 'bar'
+        config = yaml.load(
+            'environments:\n'
+            '  - name: {}\n'
+            '    account: "{}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                self.environment, self.account))
+
+        _, _, username, apikey = run.get_account(
+            config, self.environment, False, True)
+        self.assertEqual(None, username)
+        self.assertEqual('bar', apikey)
+
+    def test_get_account_with_missing_apikey(self):
+        os.environ['MY_USERNAME'] = 'foo'
+        clear_env_var('MY_APIKEY')
+        config = yaml.load(
+            'environments:\n'
+            '  - name: {}\n'
+            '    account: "{}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                self.environment, self.account))
+        with self.assertRaises(SystemExit) as exc:
+            run.get_account(config, self.environment, True, True)
+
+        print(str(exc.exception))
+        assert (run.NO_APIKEY_ENV_VAR_ERROR.format('MY_APIKEY')
+                in str(exc.exception))
+
+    def test_get_account_with_cli_apikey(self):
+        os.environ['MY_USERNAME'] = 'foo'
+        clear_env_var('MY_APIKEY')
+        config = yaml.load(
+            'environments:\n'
+            '  - name: {}\n'
+            '    account: "{}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                self.environment, self.account))
+
+        _, _, username, apikey = run.get_account(
+            config, self.environment, True, False)
+        self.assertEqual('foo', username)
+        self.assertEqual(None, apikey)
+
     def test_environment_not_found(self):
         with self.assertRaises(SystemExit) as exc:
-            run.get_account({}, self.environment)
+            run.get_account({}, self.environment, None, None)
         self.assertIn(run.ACCT_NOT_FOUND_ERROR.format(self.environment),
                       str(exc.exception))

@@ -148,8 +148,15 @@ def build(args):
     elif args.pipfile:
         pipfile = args.pipfile
     else:
+        potential_req_file = os.path.join(service_dir, 'src/requirements.txt')
         potential_pipfile = os.path.join(service_dir, 'Pipfile.lock')
+
         if os.path.exists(potential_pipfile):
+            if os.path.exists(potential_req_file):
+                print('Error: found both a requirements.txt file and '
+                      'Pipfile.lock.')
+                print('Please specify --requirements or --pipfile')
+                sys.exit(1)
             pipfile = potential_pipfile
         else:
             requirements_path = os.path.join(service_dir,
@@ -168,7 +175,8 @@ def build(args):
                src_dir=src_dir,
                dependencies=dependencies,
                requirements_path=requirements_path,
-               rebuild=args.rebuild)
+               rebuild=args.rebuild,
+               dist_dir=dist_dir)
     else:
         print(pipfile)
         _build_with_pipenv(service_name=service_name,
@@ -176,43 +184,37 @@ def build(args):
                            src_dir=src_dir,
                            dependencies=dependencies,
                            pipfile=pipfile,
-                           rebuild=args.rebuild)
-
-        requirements_txt_contents = subprocess.check_output('pipenv lock -r')
-        tmp_dir = tempfile.mkdtemp()
-
+                           rebuild=args.rebuild,
+                           dist_dir=dist_dir)
 
         # If pipfile was specified, we need to write the requirements out
         # to a temporary directory.
 
 
 def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
-                       dependencies, rebuild):
+                       dependencies, rebuild, dist_dir):
     requirements_path = None
     tmpdir = tempfile.mkdtemp()
 
     # it's too bad Python 2 doesn't have tempfile.TemporaryDirectory :(
     try:
         requirements_path = os.path.join(tmpdir, 'pipfile-requirements.txt')
+        print('Creating temporary requirements.txt from Pipenv.lock...')
         requirements_txt_contents = subprocess.check_output(
-            'pipenv lock -r  --bare',
+            'pipenv lock -r',
             shell=True,
             cwd=os.path.dirname(pipfile))
 
         with open(requirements_path, 'w') as f:
             f.write(requirements_txt_contents)
 
-        print("PRINT BACK")
-        with open(requirements_path) as f:
-            for line in f:
-                print(line)
-
         _build(service_name=service_name,
                python_version=python_version,
                src_dir=src_dir,
                requirements_path=requirements_path,
                dependencies=dependencies,
-               rebuild=rebuild)
+               rebuild=rebuild,
+               dist_dir=dist_dir)
     finally:
         if requirements_path:
             try:
@@ -223,7 +225,7 @@ def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
 
 
 def _build(service_name, python_version, src_dir, requirements_path,
-           dependencies, rebuild):
+           dependencies, rebuild, dist_dir):
     print('Building {} with {}...'.format(service_name, python_version))
 
     try:

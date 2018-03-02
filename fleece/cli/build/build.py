@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 import argparse
 from datetime import datetime
 import hashlib
@@ -179,6 +181,10 @@ def build(args):
                dist_dir=dist_dir)
     else:
         print(pipfile)
+        if not os.path.exists(pipfile):
+            print('Error: pipfile {} not found!'.format(pipfile))
+            sys.exit(1)
+
         _build_with_pipenv(service_name=service_name,
                            python_version=python_version,
                            src_dir=src_dir,

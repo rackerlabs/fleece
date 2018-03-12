@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
+
 import argparse
 from datetime import datetime
 import hashlib
@@ -7,6 +9,7 @@ import os
 import subprocess
 import sys
 import tarfile
+import tempfile
 
 import docker
 from docker import errors
@@ -25,6 +28,10 @@ def parse_args(args):
                         default='',
                         help=('requirements.txt file with dependencies '
                               '(default: $service_dir/src/requirements.txt)'))
+    parser.add_argument('--pipfile', '-p', type=str,
+                        default='',
+                        help=('directory containing Pipfile.lock '
+                              '(default: $service_dir/Pipfile.lock)'))
     parser.add_argument('--dependencies', '-d', type=str, default='',
                         help='comma separated list of system dependencies')
     parser.add_argument('--target', '-t', type=str,
@@ -132,16 +139,99 @@ def build(args):
     if not os.path.exists(build_cache_dir):
         os.makedirs(build_cache_dir)
 
+    requirements_path = None
+    pipfile = None
     if args.requirements:
-        requirements_path = os.path.abspath(args.requirements)
-    else:
-        requirements_path = os.path.join(service_dir, 'src/requirements.txt')
-    print(requirements_path)
-    if not os.path.exists(requirements_path):
-        print('Error: requirements file {} not found!'.format(
-            requirements_path))
-        sys.exit(1)
+        if args.pipfile:
+            print('Error: `requirements` and `pipfile` are mutually exclusive')
+            sys.exit(1)
 
+        requirements_path = os.path.abspath(args.requirements)
+    elif args.pipfile:
+        pipfile = args.pipfile
+    else:
+        potential_req_file = os.path.join(service_dir, 'src/requirements.txt')
+        potential_pipfile = os.path.join(service_dir, 'Pipfile.lock')
+
+        if os.path.exists(potential_pipfile):
+            if os.path.exists(potential_req_file):
+                print('Error: found both a requirements.txt file and '
+                      'Pipfile.lock.')
+                print('Please specify --requirements or --pipfile')
+                sys.exit(1)
+            pipfile = potential_pipfile
+        else:
+            requirements_path = os.path.join(service_dir,
+                                             'src/requirements.txt')
+
+    dependencies = args.dependencies.split(',')
+
+    if requirements_path:
+        print(requirements_path)
+        if not os.path.exists(requirements_path):
+            print('Error: requirements file {} not found!'.format(
+                requirements_path))
+            sys.exit(1)
+        _build(service_name=service_name,
+               python_version=python_version,
+               src_dir=src_dir,
+               dependencies=dependencies,
+               requirements_path=requirements_path,
+               rebuild=args.rebuild,
+               dist_dir=dist_dir)
+    else:
+        print(pipfile)
+        if not os.path.exists(pipfile):
+            print('Error: pipfile {} not found!'.format(pipfile))
+            sys.exit(1)
+
+        _build_with_pipenv(service_name=service_name,
+                           python_version=python_version,
+                           src_dir=src_dir,
+                           dependencies=dependencies,
+                           pipfile=pipfile,
+                           rebuild=args.rebuild,
+                           dist_dir=dist_dir)
+
+        # If pipfile was specified, we need to write the requirements out
+        # to a temporary directory.
+
+
+def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
+                       dependencies, rebuild, dist_dir):
+    requirements_path = None
+    tmpdir = tempfile.mkdtemp()
+
+    # it's too bad Python 2 doesn't have tempfile.TemporaryDirectory :(
+    try:
+        requirements_path = os.path.join(tmpdir, 'pipfile-requirements.txt')
+        print('Creating temporary requirements.txt from Pipenv.lock...')
+        requirements_txt_contents = subprocess.check_output(
+            'pipenv lock -r',
+            shell=True,
+            cwd=os.path.dirname(pipfile))
+
+        with open(requirements_path, 'w') as f:
+            f.write(requirements_txt_contents)
+
+        _build(service_name=service_name,
+               python_version=python_version,
+               src_dir=src_dir,
+               requirements_path=requirements_path,
+               dependencies=dependencies,
+               rebuild=rebuild,
+               dist_dir=dist_dir)
+    finally:
+        if requirements_path:
+            try:
+                os.remove(requirements_path)
+            except OSError:
+                pass
+        os.rmdir(tmpdir)
+
+
+def _build(service_name, python_version, src_dir, requirements_path,
+           dependencies, rebuild, dist_dir):
     print('Building {} with {}...'.format(service_name, python_version))
 
     try:
@@ -152,7 +242,7 @@ def build(args):
     image = docker_api.images.build(
         path=build_dir, tag=service_name,
         buildargs={'python_version': python_version,
-                   'deps': ' '.join(args.dependencies.split(','))})
+                   'deps': ' '.join(dependencies)})
 
     with open(requirements_path, 'rb') as fp:
         dependencies_sha1 = hashlib.sha1(fp.read()).hexdigest()
@@ -193,7 +283,7 @@ def build(args):
         environment={'DEPENDENCIES_SHA': dependencies_sha1,
                      'VERSION_HASH': get_version_hash(),
                      'BUILD_TIME': datetime.utcnow().isoformat(),
-                     'REBUILD_DEPENDENCIES': '1' if args.rebuild else '0'},
+                     'REBUILD_DEPENDENCIES': '1' if rebuild else '0'},
         volumes_from=[src.id, build_cache.id],
         detach=True)
     for line in container.logs(stream=True, follow=True):

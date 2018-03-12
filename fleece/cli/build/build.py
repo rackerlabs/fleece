@@ -89,7 +89,7 @@ def retrieve_archive(container, dist_dir):
 def put_files(container, src_dir, path, single_file_name=None):
     stream = BytesIO()
 
-    with tarfile.open(fileobj=stream, mode='w') as tar:
+    with tarfile.open(fileobj=stream, mode='w', dereference=True) as tar:
         if single_file_name:
             arcname = single_file_name
         else:

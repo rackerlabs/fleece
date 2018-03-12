@@ -102,6 +102,42 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
         self.assertTrue(os.path.exists(self.rel_path('dist')))
         self.assertTrue(os.path.exists(self.rel_path('build_cache')))
 
+        self.assertEqual(stdout.getvalue(),
+                         '{}\n'.format(self.rel_path('src/requirements.txt')))
+
+    @mock.patch('sys.stdout', new_callable=StringIO)
+    def test_by_use_requirements_file_if_both_are_found(self, stdout):
+        os.makedirs(self.rel_path('src'))
+        self.make_file('src/requirements.txt', '')
+        self.make_file('Pipfile.lock', '')
+
+        args = build.parse_args([
+            self.tmpdir
+        ])
+        build.build(args)
+
+        self.mock_build_with_pipenv.assert_not_called()
+        self.mock_build.assert_called_once()
+        self.mock_build.assert_called_with(
+            service_name=os.path.basename(self.tmpdir),
+            python_version='python27',
+            src_dir=self.rel_path('src'),
+            requirements_path=self.rel_path('src/requirements.txt'),
+            dependencies=[''],
+            rebuild=False,
+            dist_dir=self.rel_path('dist'),
+        )
+
+        # It creates a few directories...
+        self.assertTrue(os.path.exists(self.rel_path('dist')))
+        self.assertTrue(os.path.exists(self.rel_path('build_cache')))
+
+        self.assertEqual(stdout.getvalue(),
+                         'Warning- Pipfile and requirements.txt were found. '
+                         'Using requirements.txt. To use the Pipfile, specify '
+                         '`--pipfile` or delete the requirements.txt file.\n'
+                         '{}\n'.format(self.rel_path('src/requirements.txt')))
+
     @mock.patch('sys.stdout', new_callable=StringIO)
     def test_use_specified_target_directory(self, stdout):
         os.makedirs(self.rel_path('src'))

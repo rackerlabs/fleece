@@ -153,16 +153,17 @@ def build(args):
         potential_req_file = os.path.join(service_dir, 'src/requirements.txt')
         potential_pipfile = os.path.join(service_dir, 'Pipfile.lock')
 
-        if os.path.exists(potential_pipfile):
-            if os.path.exists(potential_req_file):
-                print('Error: found both a requirements.txt file and '
-                      'Pipfile.lock.')
-                print('Please specify --requirements or --pipfile')
-                sys.exit(1)
+        if (os.path.exists(potential_pipfile) and
+                not os.path.exists(potential_req_file)):
             pipfile = potential_pipfile
         else:
-            requirements_path = os.path.join(service_dir,
-                                             'src/requirements.txt')
+            if os.path.exists(potential_pipfile):
+                print('Warning- Pipfile and requirements.txt were found. '
+                      'Using requirements.txt. To use the Pipfile, specify '
+                      '`--pipfile` or delete the requirements.txt file.')
+            # don't worry; if requirements.txt isn't found an error will be
+            # raised below
+            requirements_path = potential_req_file
 
     dependencies = args.dependencies.split(',')
 

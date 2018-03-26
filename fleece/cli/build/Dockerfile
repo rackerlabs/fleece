@@ -4,6 +4,7 @@ ARG python_version=python27
 ARG deps
 
 RUN yum -y update && yum install -y ${python_version}-pip zip ${deps}
+RUN yum groupinstall "Development Tools"
 
 ENV python_version $python_version
 

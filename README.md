@@ -196,6 +196,7 @@ usage: fleece build [-h] [--python36] [--rebuild]
                     [--requirements REQUIREMENTS]
                     [--dependencies DEPENDENCIES] [--target TARGET]
                     [--source SOURCE]
+                    [--exclude [EXCLUDE [EXCLUDE ...]]]
                     service_dir
 
 Simple Lambda builder.
@@ -218,6 +219,8 @@ optional arguments:
   --source SOURCE, -s SOURCE
                         source directory to include in lambda_function.zip
                         (default: $service_dir/src)
+  --exclude [EXCLUDE [EXCLUDE ...]], -e [EXCLUDE [EXCLUDE ...]]
+                        glob pattern to exclude
 ```
 
 To build a lambda package from the service's top-level directory:

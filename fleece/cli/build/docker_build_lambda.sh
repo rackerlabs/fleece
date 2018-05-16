@@ -12,7 +12,10 @@ fi
 cd /src
 rm -f /dist/lambda_function.zip
 cp /build_cache/${DEPENDENCIES_SHA}.zip /dist/lambda_function.zip
-zip -r /dist/lambda_function.zip .
+if [[ "$EXCLUDE_PATTERNS" != "" ]]; then
+    EXCLUDE="-x $EXCLUDE_PATTERNS"
+fi
+eval zip -r /dist/lambda_function.zip $EXCLUDE -- .
 cd /tmp
 echo "{\"VERSION_HASH\": \"${VERSION_HASH}\", \"BUILD_TIME\": \"${BUILD_TIME}\"}" > config.json
 zip -r /dist/lambda_function.zip config.json

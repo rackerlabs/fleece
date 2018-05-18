@@ -106,6 +106,15 @@ def create_volume(name):
     api.volumes.create(name)
 
 
+def destroy_volume(name):
+    api = docker.from_env(version='auto')
+    try:
+        volume = api.volumes.get(name)
+    except errors.NotFound:
+        return
+    volume.remove()
+
+
 def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):
     api = docker.from_env(version='auto')
     api.images.pull(image)
@@ -307,6 +316,9 @@ def _build(service_name, python_version, src_dir, requirements_path,
         # Clean up generated containers
         clean_up_container(container)
         clean_up_container(src)
+        destroy_volume(dist_name)
+        destroy_volume(req_name)
+        destroy_volume(src_name)
 
         print('Build completed successfully.')
     sys.exit(exit_code)

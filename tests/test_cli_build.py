@@ -95,6 +95,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             requirements_path=self.rel_path('src/requirements.txt'),
             dependencies=[''],
             rebuild=False,
+            exclude=None,
             dist_dir=self.rel_path('dist'),
         )
 
@@ -125,6 +126,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             requirements_path=self.rel_path('src/requirements.txt'),
             dependencies=[''],
             rebuild=False,
+            exclude=None,
             dist_dir=self.rel_path('dist'),
         )
 
@@ -144,7 +146,8 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
         self.make_file('src/requirements.txt', '')
 
         args = build.parse_args([
-            self.tmpdir, '--target', self.rel_path('crazy-dist')
+            self.tmpdir, '--target', self.rel_path('crazy-dist'), '--exclude',
+            'foo', 'bar'
         ])
         build.build(args)
 
@@ -157,6 +160,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             requirements_path=self.rel_path('src/requirements.txt'),
             dependencies=[''],
             rebuild=False,
+            exclude=['foo', 'bar'],
             dist_dir=self.rel_path('crazy-dist'),
         )
 
@@ -183,6 +187,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             requirements_path=self.rel_path('wacky-requirements.txt'),
             dependencies=[''],
             rebuild=False,
+            exclude=None,
             dist_dir=self.rel_path('dist'),
         )
 
@@ -244,6 +249,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             pipfile=self.rel_path('wacky-pipfile'),
             dependencies=[''],
             rebuild=False,
+            exclude=None,
             dist_dir=self.rel_path('dist'),
         )
 
@@ -282,6 +288,7 @@ class TestBuildWithPipenv(unittest.TestCase):
             'src_dir': 'src_dir',
             'dependencies': ['deps'],
             'rebuild': True,
+            'exclude': None,
             'dist_dir': 'dist_dir'
         }
 

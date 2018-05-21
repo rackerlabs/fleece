@@ -43,6 +43,8 @@ def parse_args(args):
                         help=('source directory to include in '
                               'lambda_function.zip (default: '
                               '$service_dir/src)'))
+    parser.add_argument('--exclude', '-e', type=str, nargs='+',
+                        help='glob pattern to exclude')
     parser.add_argument('service_dir', type=str,
                         help=('directory where the service is located '
                               '(default: $pwd)'))
@@ -102,6 +104,15 @@ def put_files(container, src_dir, path, single_file_name=None):
 def create_volume(name):
     api = docker.from_env(version='auto')
     api.volumes.create(name)
+
+
+def destroy_volume(name):
+    api = docker.from_env(version='auto')
+    try:
+        volume = api.volumes.get(name)
+    except errors.NotFound:
+        return
+    volume.remove()
 
 
 def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):
@@ -179,6 +190,7 @@ def build(args):
                dependencies=dependencies,
                requirements_path=requirements_path,
                rebuild=args.rebuild,
+               exclude=args.exclude,
                dist_dir=dist_dir)
     else:
         print(pipfile)
@@ -192,6 +204,7 @@ def build(args):
                            dependencies=dependencies,
                            pipfile=pipfile,
                            rebuild=args.rebuild,
+                           exclude=args.exclude,
                            dist_dir=dist_dir)
 
         # If pipfile was specified, we need to write the requirements out
@@ -199,7 +212,7 @@ def build(args):
 
 
 def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
-                       dependencies, rebuild, dist_dir):
+                       dependencies, rebuild, exclude, dist_dir):
     requirements_path = None
     tmpdir = tempfile.mkdtemp()
 
@@ -221,6 +234,7 @@ def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
                requirements_path=requirements_path,
                dependencies=dependencies,
                rebuild=rebuild,
+               exclude=exclude,
                dist_dir=dist_dir)
     finally:
         if requirements_path:
@@ -232,7 +246,7 @@ def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
 
 
 def _build(service_name, python_version, src_dir, requirements_path,
-           dependencies, rebuild, dist_dir):
+           dependencies, rebuild, exclude, dist_dir):
     print('Building {} with {}...'.format(service_name, python_version))
 
     try:
@@ -284,7 +298,9 @@ def _build(service_name, python_version, src_dir, requirements_path,
         environment={'DEPENDENCIES_SHA': dependencies_sha1,
                      'VERSION_HASH': get_version_hash(),
                      'BUILD_TIME': datetime.utcnow().isoformat(),
-                     'REBUILD_DEPENDENCIES': '1' if rebuild else '0'},
+                     'REBUILD_DEPENDENCIES': '1' if rebuild else '0',
+                     'EXCLUDE_PATTERNS': ' '.join(
+                         ['"{}"'.format(e) for e in exclude or []])},
         volumes_from=[src.id, build_cache.id],
         detach=True)
     for line in container.logs(stream=True, follow=True):
@@ -300,6 +316,9 @@ def _build(service_name, python_version, src_dir, requirements_path,
         # Clean up generated containers
         clean_up_container(container)
         clean_up_container(src)
+        destroy_volume(dist_name)
+        destroy_volume(req_name)
+        destroy_volume(src_name)
 
         print('Build completed successfully.')
     sys.exit(exit_code)

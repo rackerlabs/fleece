@@ -292,15 +292,21 @@ def _build(service_name, python_version, src_dir, requirements_path,
     put_files(src, requirements_path, '/requirements',
               single_file_name='requirements.txt')
 
+    # Environment variables (including any PIP configuration variables)
+    environment = {'DEPENDENCIES_SHA': dependencies_sha1,
+                   'VERSION_HASH': get_version_hash(),
+                   'BUILD_TIME': datetime.utcnow().isoformat(),
+                   'REBUILD_DEPENDENCIES': '1' if rebuild else '0',
+                   'EXCLUDE_PATTERNS': ' '.join(
+                       ['"{}"'.format(e) for e in exclude or []])}
+    for var, value in os.environ.items():
+        if var.startswith('PIP_'):
+            environment[var] = value
+
     # Run Builder
     container = docker_api.containers.run(
         image=image.tags[0],
-        environment={'DEPENDENCIES_SHA': dependencies_sha1,
-                     'VERSION_HASH': get_version_hash(),
-                     'BUILD_TIME': datetime.utcnow().isoformat(),
-                     'REBUILD_DEPENDENCIES': '1' if rebuild else '0',
-                     'EXCLUDE_PATTERNS': ' '.join(
-                         ['"{}"'.format(e) for e in exclude or []])},
+        environment=environment,
         volumes_from=[src.id, build_cache.id],
         detach=True)
     for line in container.logs(stream=True, follow=True):

@@ -231,7 +231,7 @@ $ fleece build .
 
 The assumptions made with the above command are that the source code of the service is in `./src`, the requirements file is in `./src/requirements.txt` and the output zip file will be written to `./dist`. These defaults can be changed with the `--source`, `--requirements` and `--target` options respectively.
 
-The build process will run in a Docker container based on the Amazon Linux image. If there are any additional dependencies that need to be installed on the container prior to installing the Python requirements, those can be given with the `--dependencies` option.
+The build process will run in a Docker container based on the Amazon Linux image. If there are any additional dependencies that need to be installed on the container prior to installing the Python requirements, those can be given with the `--dependencies` option. Any environment variables recognized by `pip`, such as `PIP_INDEX_URL`, are passed on to the container.
 
 ### `fleece run`
 

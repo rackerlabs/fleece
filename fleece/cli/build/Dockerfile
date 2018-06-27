@@ -1,4 +1,4 @@
-FROM amazonlinux
+FROM amazonlinux:1
 
 ARG python_version=python27
 ARG deps

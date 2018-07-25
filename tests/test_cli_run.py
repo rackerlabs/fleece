@@ -235,6 +235,52 @@ class TestCLIRun(unittest.TestCase):
         self.assertEqual(username, 'foo')
         self.assertEqual(apikey, 'bar')
 
+    def test_get_account_with_stage_creds(self):
+        os.environ['MY_USERNAME'] = 'foo'
+        os.environ['MY_APIKEY'] = 'bar'
+        config = yaml.load(
+            'stages:\n'
+            '  sandwhich:\n'
+            '    environment: {env_name}\n'
+            'environments:\n'
+            '  - name: {env_name}\n'
+            '    account: "{account}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                env_name=self.environment, account=self.account))
+        account, role, username, apikey = run.get_account(config,
+                                                          None,
+                                                          'sandwhich')
+        del os.environ['MY_USERNAME']
+        del os.environ['MY_APIKEY']
+        self.assertEqual(account, self.account)
+        self.assertIsNone(role)
+        self.assertEqual(username, 'foo')
+        self.assertEqual(apikey, 'bar')
+
+    def test_get_account_with_stage_creds_2(self):
+        os.environ['MY_USERNAME'] = 'foo'
+        os.environ['MY_APIKEY'] = 'bar'
+        config = yaml.load(
+            'stages:\n'
+            '  /.*/:\n'
+            '    environment: {env_name}\n'
+            'environments:\n'
+            '  - name: {env_name}\n'
+            '    account: "{account}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                env_name=self.environment, account=self.account))
+        account, role, username, apikey = run.get_account(config,
+                                                          None,
+                                                          'made-up-nonsense')
+        del os.environ['MY_USERNAME']
+        del os.environ['MY_APIKEY']
+        self.assertEqual(account, self.account)
+        self.assertIsNone(role)
+        self.assertEqual(username, 'foo')
+        self.assertEqual(apikey, 'bar')
+
     def test_environment_not_found(self):
         with self.assertRaises(SystemExit) as exc:
             run.get_account({}, self.environment)

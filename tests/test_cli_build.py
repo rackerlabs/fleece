@@ -97,6 +97,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             rebuild=False,
             exclude=None,
             dist_dir=self.rel_path('dist'),
+            inject_build_info=False,
         )
 
         # It creates a few directories...
@@ -113,7 +114,8 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
         self.make_file('Pipfile.lock', '')
 
         args = build.parse_args([
-            self.tmpdir
+            self.tmpdir,
+            '--inject-build-info'
         ])
         build.build(args)
 
@@ -128,6 +130,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             rebuild=False,
             exclude=None,
             dist_dir=self.rel_path('dist'),
+            inject_build_info=True,
         )
 
         # It creates a few directories...
@@ -162,6 +165,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             rebuild=False,
             exclude=['foo', 'bar'],
             dist_dir=self.rel_path('crazy-dist'),
+            inject_build_info=False,
         )
 
         # Make sure it creates the path.
@@ -189,6 +193,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             rebuild=False,
             exclude=None,
             dist_dir=self.rel_path('dist'),
+            inject_build_info=False,
         )
 
     @mock.patch('sys.stdout', new_callable=StringIO)
@@ -251,6 +256,7 @@ class TestBuildDispatchesToCorrectFunction(unittest.TestCase):
             rebuild=False,
             exclude=None,
             dist_dir=self.rel_path('dist'),
+            inject_build_info=False,
         )
 
 
@@ -289,7 +295,8 @@ class TestBuildWithPipenv(unittest.TestCase):
             'dependencies': ['deps'],
             'rebuild': True,
             'exclude': None,
-            'dist_dir': 'dist_dir'
+            'dist_dir': 'dist_dir',
+            'inject_build_info': False,
         }
 
         build_state = {}

@@ -22,6 +22,9 @@ def parse_args(args):
                                      description='Simple Lambda builder.')
     parser.add_argument('--python36', '-3', action='store_true',
                         help='use Python 3.6 (default: Python 2.7)')
+    parser.add_argument('--inject-build-info', action='store_true',
+                        help='injects config.json into lambda, which contains '
+                             'build time and version hash')
     parser.add_argument('--rebuild', action='store_true',
                         help='rebuild Python dependencies')
     parser.add_argument('--requirements', '-r', type=str,
@@ -128,6 +131,7 @@ def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):
 
 def build(args):
     python_version = 'python36' if args.python36 else 'python27'
+    inject_build_info = args.inject_build_info
     service_dir = os.path.abspath(args.service_dir)
     service_name = os.path.basename(service_dir)
 
@@ -191,7 +195,8 @@ def build(args):
                requirements_path=requirements_path,
                rebuild=args.rebuild,
                exclude=args.exclude,
-               dist_dir=dist_dir)
+               dist_dir=dist_dir,
+               inject_build_info=inject_build_info)
     else:
         print(pipfile)
         if not os.path.exists(pipfile):
@@ -205,14 +210,16 @@ def build(args):
                            pipfile=pipfile,
                            rebuild=args.rebuild,
                            exclude=args.exclude,
-                           dist_dir=dist_dir)
+                           dist_dir=dist_dir,
+                           inject_build_info=inject_build_info)
 
         # If pipfile was specified, we need to write the requirements out
         # to a temporary directory.
 
 
 def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
-                       dependencies, rebuild, exclude, dist_dir):
+                       dependencies, rebuild, exclude, dist_dir,
+                       inject_build_info):
     requirements_path = None
     tmpdir = tempfile.mkdtemp()
 
@@ -235,7 +242,8 @@ def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
                dependencies=dependencies,
                rebuild=rebuild,
                exclude=exclude,
-               dist_dir=dist_dir)
+               dist_dir=dist_dir,
+               inject_build_info=inject_build_info)
     finally:
         if requirements_path:
             try:
@@ -246,7 +254,7 @@ def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
 
 
 def _build(service_name, python_version, src_dir, requirements_path,
-           dependencies, rebuild, exclude, dist_dir):
+           dependencies, rebuild, exclude, dist_dir, inject_build_info):
     print('Building {} with {}...'.format(service_name, python_version))
 
     try:
@@ -305,6 +313,10 @@ def _build(service_name, python_version, src_dir, requirements_path,
 
     # Run Builder
     container = docker_api.containers.run(
+        command=[
+            '/docker_build_lambda.sh',
+            'yes' if inject_build_info else ''
+        ],
         image=image.tags[0],
         environment=environment,
         volumes_from=[src.id, build_cache.id],

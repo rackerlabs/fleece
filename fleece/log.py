@@ -1,4 +1,6 @@
+from functools import wraps
 import logging
+import os
 from random import random
 import sys
 import time
@@ -8,6 +10,8 @@ import structlog
 LOG_FORMAT = '%(message)s'
 DEFAULT_STREAM = sys.stdout
 WRAPPED_DICT_CLASS = structlog.threadlocal.wrap_dict(dict)
+ENV_APIG_REQUEST_ID = '_FLEECE_APIG_REQUEST_ID'
+ENV_LAMBDA_REQUEST_ID = '_FLEECE_LAMBDA_REQUEST_ID'
 
 
 def clobber_root_handlers():
@@ -112,6 +116,31 @@ def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT,
     return False
 
 
+def inject_request_ids_into_environment(func):
+    """Decorator for the Lambda handler to inject request IDs for logging."""
+
+    @wraps(func)
+    def wrapper(event, context):
+        # This might not always be an API Gateway event, so only log the
+        # request ID, if it looks like to be coming from there.
+        if 'requestContext' in event:
+            os.environ[ENV_APIG_REQUEST_ID] = event['requestContext'].get(
+                'requestId', 'N/A')
+        os.environ[ENV_LAMBDA_REQUEST_ID] = context.aws_request_id
+        return func(event, context)
+
+    return wrapper
+
+
+def add_request_ids_from_environment(logger, name, event_dict):
+    """Custom processor adding request IDs to the log event, if available."""
+    if ENV_APIG_REQUEST_ID in os.environ:
+        event_dict['api_request_id'] = os.environ[ENV_APIG_REQUEST_ID]
+    if ENV_LAMBDA_REQUEST_ID in os.environ:
+        event_dict['lambda_request_id'] = os.environ[ENV_LAMBDA_REQUEST_ID]
+    return event_dict
+
+
 def _configure_logger(logger_factory=None, wrapper_class=None):
 
     if not logger_factory:
@@ -122,6 +151,7 @@ def _configure_logger(logger_factory=None, wrapper_class=None):
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,
+            add_request_ids_from_environment,
             structlog.stdlib.add_log_level,
             structlog.stdlib.add_logger_name,
             structlog.stdlib.PositionalArgumentsFormatter(),

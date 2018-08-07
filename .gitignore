@@ -70,3 +70,4 @@ coverage/
 README.rst
 
 .vscode/
+.mypy_cache/

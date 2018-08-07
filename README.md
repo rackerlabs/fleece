@@ -35,6 +35,10 @@ logger.addHandler(
 
 In the above example, logging calls that fail will be retried up to 5 times, using an exponential backoff algorithm to increasingly space out retries. If all retries fail, then the logging call will, by default, give up silently and return, allowing the program to continue. See the documentation for the `RetryHandler` class for information on how to customize the retry strategy.
 
+### Logging request IDs for each log event
+
+It might be very helpful to have the API Gateway and/or Lambda request IDs present in each log event, so that troubleshooting problematic requests becomes easy. If you apply the `fleece.log.inject_request_ids_into_environment` decorator to the Lambda handler function, an `api_request_id` (only if the event source is API Gateway) and a `lambda_request_id` attribute will be added to the log event dictionary.
+
 ## boto3 wrappers
 
 This project includes `fleece.boto3.client()` and `fleece.boto3.resource()` wrappers that support a friendly format for setting less conservative timeouts than the default 60 seconds used by boto. The following additional arguments are accepted to set these timeouts:

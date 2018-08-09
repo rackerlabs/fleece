@@ -60,7 +60,10 @@ STATE = {
 def _get_stage_data(stage, data=None):
     if not data:
         data = STATE['stages']
-    return run._get_stage_data(stage, data)
+    data = run.get_stage_data(stage, data)
+    if data is None:
+        raise ValueError('No match for stage "{}"'.format(stage))
+    return data
 
 
 def _get_kms_key(stage):

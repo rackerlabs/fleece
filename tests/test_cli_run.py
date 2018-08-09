@@ -281,6 +281,55 @@ class TestCLIRun(unittest.TestCase):
         self.assertEqual(username, 'foo')
         self.assertEqual(apikey, 'bar')
 
+    def _assert_config_leads_to_msg(self, config_txt, msg):
+        os.environ['MY_USERNAME'] = 'foo'
+        os.environ['MY_APIKEY'] = 'bar'
+        config = yaml.load(config_txt)
+        try:
+            run.get_account(config, None, 'sandwhich')
+            self.fail("Expected SystemExit")
+        except SystemExit as se:
+            self.assertIn(msg, str(se))
+
+    def test_get_account_with_stage_creds_but_stages_not_found(self):
+        self._assert_config_leads_to_msg(
+            'environments:\n'
+            '  - name: {env_name}\n'
+            '    account: "{account}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                env_name=self.environment, account=self.account),
+            'No stage named'
+        )
+
+    def test_get_account_with_stage_creds_but_specific_stage_not_found(self):
+        self._assert_config_leads_to_msg(
+            'stages:\n'
+            '  biscuit:\n'
+            '    environment: {env_name}\n'
+            'environments:\n'
+            '  - name: {env_name}\n'
+            '    account: "{account}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                env_name=self.environment, account=self.account),
+            'No stage named'
+        )
+
+    def test_get_account_with_stage_creds_but_no_envs_for_stage(self):
+        self._assert_config_leads_to_msg(
+            'stages:\n'
+            '  sandwhich:\n'
+            '    pie: {env_name}\n'
+            'environments:\n'
+            '  - name: {env_name}\n'
+            '    account: "{account}"\n'
+            '    rs_username_var: MY_USERNAME\n'
+            '    rs_apikey_var: MY_APIKEY'.format(
+                env_name=self.environment, account=self.account),
+            'No default environment defined for stage'
+        )
+
     def test_environment_not_found(self):
         with self.assertRaises(SystemExit) as exc:
             run.get_account({}, self.environment)

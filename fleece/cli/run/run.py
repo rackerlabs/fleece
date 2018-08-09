@@ -13,6 +13,8 @@ import yaml
 RS_AUTH_ERROR = 'Rackspace authentication failed:\nStatus: {}\nResponse: {}'
 ACCT_NOT_FOUND_ERROR = 'No AWS account for `{}` found in config'
 NO_USER_OR_APIKEY_ERROR = 'You must provide a Rackspace username and apikey'
+NO_STAGE_DATA = 'No stage named "{}"" found in config'
+NO_ENV_IN_STAGE = 'No default environment defined for stage "{}"'
 ENV_AND_ACCT_ERROR = 'Use only ONE of `--environment` or `--account`'
 NO_ACCT_OR_ENV_ERROR = 'You must provide either `--environment` or `--account`'
 ENV_AND_ROLE_ERROR = ('`--role` cannot be used with `--environment` '
@@ -93,23 +95,25 @@ def assume_role(credentials, account, role):
     }
 
 
-def _get_stage_data(stage, data):
+def get_stage_data(stage, data):
     if stage in data:
         return data[stage]
     for s in data:
         if s.startswith('/'):
             if re.fullmatch(s.split('/')[1], stage):
                 return data[s]
-    raise ValueError('No match for stage "{}"'.format(stage))
+    return None
 
 
 def get_environment(config, stage):
     """Find default environment name in stage."""
-    stage_data = _get_stage_data(stage, config.get('stages', {}))
+    stage_data = get_stage_data(stage, config.get('stages', {}))
+    if not stage_data:
+        sys.exit(NO_STAGE_DATA.format(stage))
     try:
         return stage_data['environment']
-    except IndexError:
-        raise ValueError('No environment defined for stage "{}"'.format(stage))
+    except KeyError:
+        sys.exit(NO_ENV_IN_STAGE.format(stage))
 
 
 def get_account(config, environment, stage=None):

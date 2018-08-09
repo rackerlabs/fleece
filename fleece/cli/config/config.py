@@ -3,7 +3,6 @@ import argparse
 import base64
 import json
 import os
-import re
 import subprocess
 import sys
 
@@ -61,13 +60,10 @@ STATE = {
 def _get_stage_data(stage, data=None):
     if not data:
         data = STATE['stages']
-    if stage in data:
-        return data[stage]
-    for s in data:
-        if s.startswith('/'):
-            if re.fullmatch(s.split('/')[1], stage):
-                return data[s]
-    raise ValueError('No match for stage "{}"'.format(stage))
+    data = run.get_stage_data(stage, data)
+    if data is None:
+        raise ValueError('No match for stage "{}"'.format(stage))
+    return data
 
 
 def _get_kms_key(stage):

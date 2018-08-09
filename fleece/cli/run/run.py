@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import os
+import re
 import subprocess
 import sys
 
@@ -12,6 +13,8 @@ import yaml
 RS_AUTH_ERROR = 'Rackspace authentication failed:\nStatus: {}\nResponse: {}'
 ACCT_NOT_FOUND_ERROR = 'No AWS account for `{}` found in config'
 NO_USER_OR_APIKEY_ERROR = 'You must provide a Rackspace username and apikey'
+NO_STAGE_DATA = 'No stage named "{}"" found in config'
+NO_ENV_IN_STAGE = 'No default environment defined for stage "{}"'
 ENV_AND_ACCT_ERROR = 'Use only ONE of `--environment` or `--account`'
 NO_ACCT_OR_ENV_ERROR = 'You must provide either `--environment` or `--account`'
 ENV_AND_ROLE_ERROR = ('`--role` cannot be used with `--environment` '
@@ -55,6 +58,10 @@ def parse_args(args):
     parser.add_argument('--environment', '-e', type=str,
                         help=('Environment alias to AWS account defined in '
                               'config file. Cannot be used with `--account`'))
+    parser.add_argument('--stage', '-s', type=str,
+                        help=('Stage name defined in config file which links '
+                              'to an environment. Cannot be used with '
+                              '`--account`'))
     parser.add_argument('--role', '-r', type=str,
                         help=('Role name to assume after obtaining credentials'
                               ' from FAWS API'))
@@ -88,8 +95,31 @@ def assume_role(credentials, account, role):
     }
 
 
-def get_account(config, environment):
+def get_stage_data(stage, data):
+    if stage in data:
+        return data[stage]
+    for s in data:
+        if s.startswith('/'):
+            if re.fullmatch(s.split('/')[1], stage):
+                return data[s]
+    return None
+
+
+def get_environment(config, stage):
+    """Find default environment name in stage."""
+    stage_data = get_stage_data(stage, config.get('stages', {}))
+    if not stage_data:
+        sys.exit(NO_STAGE_DATA.format(stage))
+    try:
+        return stage_data['environment']
+    except KeyError:
+        sys.exit(NO_ENV_IN_STAGE.format(stage))
+
+
+def get_account(config, environment, stage=None):
     """Find environment name in config object and return AWS account."""
+    if environment is None and stage:
+        environment = get_environment(config, stage)
     account = None
     for env in config.get('environments', []):
         if env.get('name') == environment:
@@ -160,7 +190,7 @@ def get_rackspace_token(username, apikey):
 
 def validate_args(args):
     """Validate command-line arguments."""
-    if not any([args.environment, args.account]):
+    if not any([args.environment, args.stage, args.account]):
         sys.exit(NO_ACCT_OR_ENV_ERROR)
     if args.environment and args.account:
         sys.exit(ENV_AND_ACCT_ERROR)
@@ -171,10 +201,10 @@ def validate_args(args):
 def run(args):
     role = args.role
 
-    if args.environment:
+    if args.environment or args.stage:
         config = get_config(args.config)
         account, role, cfg_username, cfg_apikey = get_account(
-            config, args.environment)
+            config, args.environment, args.stage)
     else:
         cfg_username, cfg_apikey = None, None
         account = args.account

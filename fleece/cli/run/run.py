@@ -13,7 +13,7 @@ import yaml
 RS_AUTH_ERROR = 'Rackspace authentication failed:\nStatus: {}\nResponse: {}'
 ACCT_NOT_FOUND_ERROR = 'No AWS account for `{}` found in config'
 NO_USER_OR_APIKEY_ERROR = 'You must provide a Rackspace username and apikey'
-NO_STAGE_DATA = 'No stage named "{}"" found in config'
+NO_STAGE_DATA = 'No stage named "{}" found in config'
 NO_ENV_IN_STAGE = 'No default environment defined for stage "{}"'
 ENV_AND_ACCT_ERROR = 'Use only ONE of `--environment` or `--account`'
 NO_ACCT_OR_ENV_ERROR = 'You must provide either `--environment` or `--account`'

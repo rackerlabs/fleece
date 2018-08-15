@@ -115,6 +115,8 @@ with requests.Session() as session:
 
 This project also bridges the gap of missing Python support in the [AWS X-Ray](https://aws.amazon.com/xray/) [Lambda integration](http://docs.aws.amazon.com/xray/latest/devguide/xray-services-lambda.html).
 
+**Update:** There's now an [official AWS X-Ray SDK for Python](https://docs.aws.amazon.com/xray/latest/devguide/xray-sdk-python.html), so you might want to use that, but this implementation is still fully functional.
+
 ### Prerequisites
 
  1. Make sure you add the following permissions to the Lambda execution role of your function: `xray:PutTraceSegments` and `xray:PutTelemetryRecords`.
@@ -149,6 +151,8 @@ def get_user():
 ```
 
 **Note:** the monkey-patched tracing will also work with the wrappers described above.
+
+As of August 2018 we have experienced a strange behavior with Lambda & X-Ray where no invocations were marked for sampling, so there's now a way to force all traces to be recorded by setting the `FLEECE_XRAY_FORCE_SAMPLE` environment variable to any value.
 
 ## Connexion integration
 

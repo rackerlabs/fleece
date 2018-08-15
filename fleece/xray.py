@@ -205,6 +205,24 @@ def get_function_name(wrapped, instance, args, kwargs):
     return wrapped.__name__
 
 
+def get_sampled():
+    """Determine if trace should be sampled.
+
+    By default we're looking at the `Sampled` attribute of the trace ID, but
+    we've ran into cases where Lambda/X-Ray set the value to `0` for all
+    requests. The `FLEECE_XRAY_FORCE_SAMPLE` can override this behavior, and
+    force all traces to be recorded. Use this with care, only suitable for low
+    traffic apps/services.
+    """
+    trace_id = get_trace_id()
+    if trace_id.sampled:
+        return True
+    if os.environ.get('FLEECE_XRAY_FORCE_SAMPLE'):
+        return True
+
+    return False
+
+
 def generic_xray_wrapper(wrapped, instance, args, kwargs, name, namespace,
                          metadata_extractor,
                          error_handling_type=ERROR_HANDLING_GENERIC):
@@ -232,9 +250,8 @@ def generic_xray_wrapper(wrapped, instance, args, kwargs, name, namespace,
     The `error_handling_type` determines how exceptions raised by the wrapped
     function are handled. Currently `botocore` requires some special care.
     """
-    if not get_trace_id().sampled:
-        # Request not sampled by X-Ray, let's get to the call
-        # immediately.
+    if not get_sampled():
+        # Request not sampled by X-Ray, let's get to the call immediately.
         LOGGER.debug('Request not sampled by X-Ray, skipping trace')
         return wrapped(*args, **kwargs)
 

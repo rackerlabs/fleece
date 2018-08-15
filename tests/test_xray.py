@@ -50,6 +50,42 @@ class GetTraceIDTestCase(unittest.TestCase):
         self.assertFalse(trace_id.sampled)
 
 
+class GetSampledTestCase(unittest.TestCase):
+    FORCE_ENV_VARIABLE = 'FLEECE_XRAY_FORCE_SAMPLE'
+    TRACE_ID_ENV_VARIABLE = '_X_AMZN_TRACE_ID'
+
+    def test_no_environment_variables_set(self):
+        self.assertFalse(xray.get_sampled())
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            TRACE_ID_ENV_VARIABLE: 'Root=1-5901e3bc-8da3814a5f3ccbc864b66ecc;Sampled=0'  # noqa
+        }
+    )
+    def test_trace_not_sampled(self):
+        self.assertFalse(xray.get_sampled())
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            TRACE_ID_ENV_VARIABLE: 'Root=1-5901e3bc-8da3814a5f3ccbc864b66ecc;Sampled=1'  # noqa
+        }
+    )
+    def test_trace_sampled(self):
+        self.assertTrue(xray.get_sampled())
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            FORCE_ENV_VARIABLE: '1',
+            TRACE_ID_ENV_VARIABLE: 'Root=1-5901e3bc-8da3814a5f3ccbc864b66ecc;Sampled=0',  # noqa
+        }
+    )
+    def test_trace_force_sampled(self):
+        self.assertTrue(xray.get_sampled())
+
+
 class GetXRayDaemonTestCase(unittest.TestCase):
     ENV_VARIABLE = 'AWS_XRAY_DAEMON_ADDRESS'
 

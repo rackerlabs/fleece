@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from moto import mock_sts
+# from moto import mock_sts  # currently unused
 import six
 import yaml
 

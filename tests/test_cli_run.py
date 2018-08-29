@@ -192,7 +192,8 @@ class TestCLIRun(unittest.TestCase):
     #         #     expected_arn,
     #         # )
     #
-    #         expected_keys = ['secretAccessKey', 'sessionToken', 'accessKeyId']
+    #         expected_keys = ['secretAccessKey', 'sessionToken',
+    #                          'accessKeyId']
     #         [self.assertIn(key, creds) for key in expected_keys]
 
     def test_get_config(self):

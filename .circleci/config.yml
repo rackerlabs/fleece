@@ -88,7 +88,21 @@ jobs:
       - save_cache:
           key: tox-py3-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
           paths: [.tox]
-
+  test_style:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:2.7.15
+    steps:
+      - checkout
+      - restore_cache:
+          key: tox-py2-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run tests
+          command: |
+            . venv2/bin/activate
+            tox -v -e style
 
 workflows:
   version: 2
@@ -101,3 +115,6 @@ workflows:
       - install_dependencies_py3
       - test_py3:
           requires: [install_dependencies_py3]
+
+      - test_style:
+          requires: [install_dependencies_py2]

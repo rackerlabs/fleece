@@ -18,7 +18,7 @@ jobs:
       - run:
           name: Install Python build dependencies
           command: |
-            test -x venv/bin/activate && virtualenv venv
+            test -x venv/bin/activate || virtualenv venv
             . venv/bin/activate
             pip install tox
             pip install -U appdirs packaging six

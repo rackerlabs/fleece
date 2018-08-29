@@ -1,0 +1,58 @@
+version: 2
+
+notify:
+  webhooks:
+    - url: https://hermes.data.security.rackspace.com/circle
+
+jobs:
+  install_dependencies:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:2.7.15
+    steps:
+      - checkout
+      - restore_cache:
+          key: virtualenv-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Install Python build dependencies
+          command: |
+            test -x venv/bin/activate && virtualenv venv
+            . venv/bin/activate
+            pip install tox
+            pip install -U appdirs packaging six
+            pip install -U pip setuptools virtualenv
+            pip install -r requirements/tests.txt
+      - persist_to_workspace:
+          root: ~/repo
+          paths: [venv]
+      - save_cache:
+          key: virtualenv-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+          paths: [venv]
+  test:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:2.7.15
+    steps:
+      - checkout
+      - restore_cache:
+          key: tox-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run tests
+          command: |
+            . venv/bin/activate
+            tox -v
+      - save_cache:
+          key: tox-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+          paths: [.tox]
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - install_dependencies
+      - test:
+          requires: [install_dependencies]

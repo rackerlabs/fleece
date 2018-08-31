@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from moto import mock_sts
+# from moto import mock_sts  # currently unused
 import six
 import yaml
 
@@ -172,28 +172,6 @@ class TestCLIRun(unittest.TestCase):
                                               response_mock.text),
                     str(exc.exception),
                 )
-
-    def test_assume_role(self):
-        with mock_sts():
-            creds = run.assume_role(self.aws_credentials['credential'],
-                                    self.account, self.role)
-
-            # There is currently a bug in moto that causes it to simply
-            # return the passed-in RoleArn instead of an actual assumed-role
-            # ARN. Disabling these until fixed in moto.
-            #
-            # expected_arn = 'arn:aws:sts::{}:assumed-role/{}/{}'.format(
-            #     self.account,
-            #     self.role,
-            #     'fleece_assumed_role',
-            # )
-            # self.assertEqual(
-            #     creds['AssumedRoleUser']['Arn'],
-            #     expected_arn,
-            # )
-
-            expected_keys = ['secretAccessKey', 'sessionToken', 'accessKeyId']
-            [self.assertIn(key, creds) for key in expected_keys]
 
     def test_get_config(self):
         mock_open = mock.mock_open(read_data=self.config)

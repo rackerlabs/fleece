@@ -1,0 +1,120 @@
+version: 2
+
+jobs:
+  install_dependencies_py2:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:2.7.15
+    steps:
+      - checkout
+      - restore_cache:
+          key: virtualenv-py2-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Install Python build dependencies
+          command: |
+            test -x venv2/bin/activate || virtualenv venv2
+            . venv2/bin/activate
+            pip install tox
+            pip install -U appdirs packaging six
+            pip install -U pip setuptools virtualenv
+            pip install -r requirements/tests.txt
+      - persist_to_workspace:
+          root: ~/repo
+          paths: [venv2]
+      - save_cache:
+          key: virtualenv-py2-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+          paths: [venv2]
+  test_py2:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:2.7.15
+    steps:
+      - checkout
+      - restore_cache:
+          key: tox-py2-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run tests
+          command: |
+            . venv2/bin/activate
+            tox -v -e py27
+      - save_cache:
+          key: tox-py2-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+          paths: [.tox]
+
+  install_dependencies_py3:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:3.6.6
+    steps:
+      - checkout
+      - restore_cache:
+          key: virtualenv-py3-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Install Python build dependencies
+          command: |
+            test -x venv3/bin/activate || python3 -m venv venv3
+            . venv3/bin/activate
+            pip install tox
+            pip install -U appdirs packaging six
+            pip install -U pip setuptools virtualenv
+            pip install -r requirements/tests.txt
+      - persist_to_workspace:
+          root: ~/repo
+          paths: [venv3]
+      - save_cache:
+          key: virtualenv-py3-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+          paths: [venv3]
+  test_py3:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:3.6.6
+    steps:
+      - checkout
+      - restore_cache:
+          key: tox-py3-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run tests
+          command: |
+            . venv3/bin/activate
+            tox -v -e py36
+      - save_cache:
+          key: tox-py3-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+          paths: [.tox]
+  test_style:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:2.7.15
+    steps:
+      - checkout
+      - restore_cache:
+          key: tox-py2-v1-{{ checksum "requirements/tests.txt" }}-{{ checksum "requirements.txt" }}
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run tests
+          command: |
+            . venv2/bin/activate
+            tox -v -e style
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - install_dependencies_py2
+      - test_py2:
+          requires: [install_dependencies_py2]
+
+      - install_dependencies_py3
+      - test_py3:
+          requires: [install_dependencies_py3]
+
+      - test_style:
+          requires: [install_dependencies_py2]

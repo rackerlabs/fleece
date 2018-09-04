@@ -291,15 +291,33 @@ def write_to_parameter_store(args, config):
     print('Writing config with parameter store prefix {prefix} to AWS '
           'account {account_id}'.format(prefix=prefix, account_id=account_id))
 
-    for name, value in config.items():
-        ps_name = '{}/{}'.format(prefix, name)
-        print('Writing {}...'.format(ps_name))
-        ssm.put_parameter(
-            Name=ps_name,
-            Value=str(value),
-            Type='SecureString',
-            Overwrite=True,
-        )
+    def validate(name, value):
+        if not isinstance(value, (str, dict)):
+            msg = ('Error: all config values must be strings or dictionaries '
+                   'to work with parameter store, can\'t handle {}'.format(
+                    name))
+            raise ValueError(msg)
+        elif isinstance(value, dict):
+            for k, v in value.items():
+                validate('{}/{}'.format(name, k), v)
+
+    validate(prefix, config)
+
+    def put(name, value):
+        if isinstance(value, dict):
+            for k, v in value.items():
+                put('{}/{}'.format(name, k), v)
+        elif isinstance(value, str):
+            ps_name = name
+            print('Writing {}...'.format(ps_name))
+            ssm.put_parameter(
+                Name=ps_name,
+                Value=json.dumps(value),
+                Type='SecureString',
+                Overwrite=True,
+            )
+
+    put(prefix, config)
 
 
 def render_config(args, output_file=None):

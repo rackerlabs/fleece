@@ -292,3 +292,59 @@ class TestCLIConfig(unittest.TestCase):
             'foo': 'bar',
             'password': 'prod-password'
         })
+
+    def test_render_parameter_store(self, *args):
+        fake_parameter_store = {}
+
+        class StsClient:
+            def get_caller_identity(self):
+                return {'Account': '12345'}
+
+        class SsmClient:
+            def put_parameter(self, Name, Value, Type, Overwrite):
+                fake_parameter_store[Name] = Value
+                assert Type == 'SecureString'
+                assert Overwrite
+
+        def fake_boto3_client(name, *args, **kwargs):
+            if name == 'sts':
+                return StsClient()
+            elif name == 'ssm':
+                return SsmClient()
+            raise AssertionError("non-mocked boto3 call")
+
+        def fake_awscreds(self, environment):
+            return {
+                'accessKeyId': ':)',
+                'secretAccessKey': '0-..',
+                'sessionToken': '$',
+            }
+
+        sys.stdout = StringIO()
+        with open(TEST_CONFIG, 'wt') as f:
+            f.write(test_config_file)
+
+        with mock.patch('boto3.client', fake_boto3_client):
+            with mock.patch.object(config.AWSCredentialCache,
+                                   'get_awscreds', fake_awscreds):
+                config.main(['-c', TEST_CONFIG, 'render', 'prod',
+                             '--parameter-store', '/super-service/blah'])
+
+        sys.stdout.seek(0)
+        data = sys.stdout.read()
+
+        actual_lines = data.split('\n')
+
+        self.assertEqual(
+            'Writing config with parameter store prefix '
+            '/super-service/blah to AWS account 12345',
+            actual_lines[0]
+        )
+        for key in ['foo', 'password']:
+            found = False
+            for actual_line in actual_lines[1:]:
+                if actual_line.startswith(
+                        'Writing /super-service/blah/{}...'.format(key)):
+                    found = True
+                    break
+            self.assertTrue(found)

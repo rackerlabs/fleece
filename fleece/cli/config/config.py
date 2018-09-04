@@ -262,7 +262,6 @@ def edit_config(args):
 def _read_config_file(args):
     """Decrypt config file, returns a tuple with stages and config."""
     stage = args.stage
-    env = args.environment or stage
     with open(args.config, 'rt') as f:
         config = yaml.safe_load(f.read())
     STATE['stages'] = config['stages']
@@ -272,7 +271,8 @@ def _read_config_file(args):
 
 
 def write_to_parameter_store(args, config):
-    environment = _get_environment(args.stage)
+    env = args.environment or args.stage
+    environment = _get_environment(env)
     awscreds = STATE['awscreds'].get_awscreds(environment)
 
     sts = boto3.client("sts",
@@ -288,13 +288,14 @@ def write_to_parameter_store(args, config):
 
     prefix = args.parameter_store
 
-    print(f'Writing config for stage {args.stage} to AWS account {account_id}')
+    print('Writing config with parameter store prefix {prefix} to AWS '
+          'account {account_id}'.format(prefix=prefix, account_id=account_id))
 
     for name, value in config.items():
-        ps_name = f'{prefix}/{name}'
-        print(f'Writing {ps_name}...')
+        ps_name = '{}/{}'.format(prefix, name)
+        print('Writing {}...'.format(ps_name))
         ssm.put_parameter(
-            Name=f'{prefix}/{name}',
+            Name=ps_name,
             Value=str(value),
             Type='SecureString',
             Overwrite=True,
@@ -306,6 +307,8 @@ def render_config(args, output_file=None):
         output_file = sys.stdout
 
     stages, config = _read_config_file(args)
+
+    env = args.environment or args.stage
 
     if args.parameter_store is not None:
         return write_to_parameter_store(args, config)

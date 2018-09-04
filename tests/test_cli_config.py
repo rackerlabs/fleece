@@ -394,9 +394,12 @@ class TestCLIConfig(unittest.TestCase):
                 actual_line.startswith('Writing /super-service/blah/'),
                 msg='Line {} was {}'.format(index + 1, actual_line))
 
-        self.assertEqual({
+        self.assertEqual(
+            {
                 '/super-service/blah/foo': 'bar',
                 '/super-service/blah/password': 'prod-password',
                 '/super-service/blah/nest/bird': 'pigeon',
                 '/super-service/blah/nest/tree': 'birch',
-            }, fake_parameter_store)
+            },
+            fake_parameter_store
+        )

@@ -40,6 +40,9 @@ config:
     +prod: :encrypt:prod-password
     +foo: :encrypt:foo-password
     +/ba.*/: :encrypt:bar-password
+  nest:
+    bird: pigeon
+    tree: birch
 '''
 
 test_json_config = '''{
@@ -58,6 +61,10 @@ test_json_config = '''{
         "password": {
             "+dev": ":encrypt:dev-password",
             "+prod": ":encrypt:prod-password"
+        },
+        "nest": {
+            "bird": "pigeon",
+            "tree": "birch"
         }
     }
 }
@@ -76,7 +83,10 @@ config:
     +dev: :decrypt:ZGV2OmRldi1wYXNzd29yZA==
     +prod: :decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk
     +foo: :decrypt:Zm9vOmZvby1wYXNzd29yZA==
-    +/ba.*/: :decrypt:L2JhLiovOmJhci1wYXNzd29yZA=='''
+    +/ba.*/: :decrypt:L2JhLiovOmJhci1wYXNzd29yZA==
+  nest:
+    bird: pigeon
+    tree: birch'''
 
 
 test_environments = {
@@ -128,7 +138,10 @@ class TestCLIConfig(unittest.TestCase):
                     '+prod': ':decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk',
                     '+foo': ':decrypt:Zm9vOmZvby1wYXNzd29yZA==',
                     '+/ba.*/': ':decrypt:L2JhLiovOmJhci1wYXNzd29yZA=='
-
+                },
+                'nest': {
+                    'bird': 'pigeon',
+                    'tree': 'birch',
                 }
             }
         })
@@ -151,6 +164,10 @@ class TestCLIConfig(unittest.TestCase):
                 'password': {
                     '+dev': ':decrypt:ZGV2OmRldi1wYXNzd29yZA==',
                     '+prod': ':decrypt:cHJvZDpwcm9kLXBhc3N3b3Jk'
+                },
+                'nest': {
+                    'bird': 'pigeon',
+                    'tree': 'birch',
                 }
             }
         })
@@ -176,6 +193,10 @@ class TestCLIConfig(unittest.TestCase):
                     '+prod': ':encrypt:prod-password',
                     '+foo': ':encrypt:foo-password',
                     '+/ba.*/': ':encrypt:bar-password'
+                },
+                'nest': {
+                    'bird': 'pigeon',
+                    'tree': 'birch',
                 }
             }
         })
@@ -201,6 +222,10 @@ class TestCLIConfig(unittest.TestCase):
                     '+prod': ':encrypt:prod-password',
                     '+foo': ':encrypt:foo-password',
                     '+/ba.*/': ':encrypt:bar-password'
+                },
+                'nest': {
+                    'bird': 'pigeon',
+                    'tree': 'birch',
                 }
             }
         })
@@ -216,7 +241,11 @@ class TestCLIConfig(unittest.TestCase):
         sys.stdout = stdout
         self.assertEqual(yaml.load(data), {
             'foo': 'bar',
-            'password': 'dev-password'
+            'password': 'dev-password',
+            'nest': {
+                'bird': 'pigeon',
+                'tree': 'birch',
+            }
         })
 
     def test_render_yaml_config_custom(self, *args):
@@ -230,7 +259,11 @@ class TestCLIConfig(unittest.TestCase):
         sys.stdout = stdout
         self.assertEqual(yaml.load(data), {
             'foo': 'bar',
-            'password': 'foo-password'
+            'password': 'foo-password',
+            'nest': {
+                'bird': 'pigeon',
+                'tree': 'birch',
+            }
         })
 
     def test_render_yaml_config_custom_regex(self, *args):
@@ -244,7 +277,11 @@ class TestCLIConfig(unittest.TestCase):
         sys.stdout = stdout
         self.assertEqual(yaml.load(data), {
             'foo': 'bar',
-            'password': 'bar-password'
+            'password': 'bar-password',
+            'nest': {
+                'bird': 'pigeon',
+                'tree': 'birch',
+            },
         })
 
     def test_render_json_config(self, *args):
@@ -258,7 +295,11 @@ class TestCLIConfig(unittest.TestCase):
         sys.stdout = stdout
         self.assertEqual(json.loads(data), {
             'foo': 'bar',
-            'password': 'prod-password'
+            'password': 'prod-password',
+            'nest': {
+                'bird': 'pigeon',
+                'tree': 'birch',
+            }
         })
 
     def test_render_encrypted_config(self, *args):
@@ -273,7 +314,11 @@ class TestCLIConfig(unittest.TestCase):
         self.assertEqual(
             json.loads(mock_decrypt(json.loads(data)[0], 'prod')), {
                 'foo': 'bar',
-                'password': 'prod-password'
+                'password': 'prod-password',
+                'nest': {
+                    'bird': 'pigeon',
+                    'tree': 'birch',
+                }
             })
 
     def test_render_python_config(self, *args):
@@ -290,7 +335,11 @@ class TestCLIConfig(unittest.TestCase):
         data = mock_decrypt(g['ENCRYPTED_CONFIG'][0], 'prod')
         self.assertEqual(json.loads(data), {
             'foo': 'bar',
-            'password': 'prod-password'
+            'password': 'prod-password',
+            'nest': {
+                'bird': 'pigeon',
+                'tree': 'birch',
+            }
         })
 
     def test_render_parameter_store(self, *args):
@@ -333,18 +382,21 @@ class TestCLIConfig(unittest.TestCase):
         sys.stdout.seek(0)
         data = sys.stdout.read()
 
-        actual_lines = data.split('\n')
+        actual_lines = [line for line in data.split('\n') if line]
 
         self.assertEqual(
             'Writing config with parameter store prefix '
             '/super-service/blah to AWS account 12345',
             actual_lines[0]
         )
-        for key in ['foo', 'password']:
-            found = False
-            for actual_line in actual_lines[1:]:
-                if actual_line.startswith(
-                        'Writing /super-service/blah/{}...'.format(key)):
-                    found = True
-                    break
-            self.assertTrue(found)
+        for index, actual_line in enumerate(actual_lines[1:]):
+            self.assertTrue(
+                actual_line.startswith('Writing /super-service/blah/'),
+                msg='Line {} was {}'.format(index + 1, actual_line))
+
+        self.assertEqual({
+                '/super-service/blah/foo': 'bar',
+                '/super-service/blah/password': 'prod-password',
+                '/super-service/blah/nest/bird': 'pigeon',
+                '/super-service/blah/nest/tree': 'birch',
+            }, fake_parameter_store)

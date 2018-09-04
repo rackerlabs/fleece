@@ -292,10 +292,10 @@ def write_to_parameter_store(args, config):
           'account {account_id}'.format(prefix=prefix, account_id=account_id))
 
     def validate(name, value):
-        if not isinstance(value, (str, dict)):
+        if not isinstance(value, (six.string_types, dict)):
             msg = ('Error: all config values must be strings or dictionaries '
-                   'to work with parameter store, can\'t handle {}'.format(
-                    name))
+                   'to work with parameter store, can\'t handle {} of type {}'
+                   .format(name, type(value)))
             raise ValueError(msg)
         elif isinstance(value, dict):
             for k, v in value.items():
@@ -307,12 +307,12 @@ def write_to_parameter_store(args, config):
         if isinstance(value, dict):
             for k, v in value.items():
                 put('{}/{}'.format(name, k), v)
-        elif isinstance(value, str):
+        elif isinstance(value, six.string_types):
             ps_name = name
             print('Writing {}...'.format(ps_name))
             ssm.put_parameter(
                 Name=ps_name,
-                Value=json.dumps(value),
+                Value=value,
                 Type='SecureString',
                 Overwrite=True,
             )

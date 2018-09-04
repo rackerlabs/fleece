@@ -401,9 +401,9 @@ Writes the contents of `config.yml` to `stdout` in the open format for editing. 
 
 This command exports the configuration to a temp file, then starts a text editor (`vi` by default) on this file. After the editor is closed, the modified file is re-imported. This is the most convenient workflow to edit the configuration.
 
-#### `fleece config render [--json] [--encrypt] [--python] <environment>`
+#### `fleece config render [--environment] [--json] [--encrypt] [--python] [--parameter-store PARAMETER_STORE_PREFIX] <stage>`
 
-Writes the configuration variables for the given environment to stdout. There are four output options: YAML plaintext (the default), JSON plaintext (with `--json`), JSON encrypted (with `--encrypt`) and an encrypted Python module (with `--python`).
+Writes the configuration variables for the given environment to stdout or uploads them to parameter store. There are four output options: YAML plaintext (the default), JSON plaintext (with `--json`), JSON encrypted (with `--encrypt`) and an encrypted Python module (with `--python`).
 
 The encrypted configuration consists on a list of encrypted buffers that need to be decrypted and appended. The result of this operation is the JSON plaintext configuration. The following output is the output of `--python`, which includes the decrypt and decode logic:
 
@@ -430,3 +430,9 @@ If this is saved as `fleece_config.py` in the source directory, the configuratio
 ```python
 from fleece_config import CONFIG
 ```
+
+If `--parameter-store` is specified, the next argument needs to be a prefix used for all variables that will be uploaded to parameter store. This should start with a slash.
+
+For example, if the arguments are `--parameter-store /super-service/some-id` and the config has a value called `foo`, then fleece will create or overwrite a secure string parameter store value named `/super-service/some-id/foo` with the value being the decrypted config value of `foo`.
+
+All values are converted to strings before being saved to parameter store. If the config has a nested dictionary, then multiple parameter store values will be saved (so inthe example above, the field `nested` with a value of `inner` would be saved as `/super-service/some-id/nested/inner`).

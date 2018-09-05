@@ -342,40 +342,50 @@ class TestCLIConfig(unittest.TestCase):
             }
         })
 
+    class FakeAws:
+        def __init__(self):
+            self.fake_parameter_store = {}
+
+            class StsClient:
+                def get_caller_identity(self):
+                    return {'Account': '12345'}
+
+            class SsmClient:
+                def put_parameter(self_2, Name, Value, Type, Overwrite):
+                    self.fake_parameter_store[Name] = Value
+                    assert Type == 'SecureString'
+                    assert Overwrite
+
+            def fake_boto3_client(name, *args, **kwargs):
+                if name == 'sts':
+                    return StsClient()
+                elif name == 'ssm':
+                    return SsmClient()
+                raise AssertionError("non-mocked boto3 call")
+
+            self._fake_boto3_client = fake_boto3_client
+
+        def patch(self):
+            return mock.patch('boto3.client', self._fake_boto3_client)
+
+    def fake_awscreds(self, environment):
+        assert environment == 'prod'
+        return {
+            'accessKeyId': ':)',
+            'secretAccessKey': '0-..',
+            'sessionToken': '$',
+        }
+
     def test_render_parameter_store(self, *args):
-        fake_parameter_store = {}
-
-        class StsClient:
-            def get_caller_identity(self):
-                return {'Account': '12345'}
-
-        class SsmClient:
-            def put_parameter(self, Name, Value, Type, Overwrite):
-                fake_parameter_store[Name] = Value
-                assert Type == 'SecureString'
-                assert Overwrite
-
-        def fake_boto3_client(name, *args, **kwargs):
-            if name == 'sts':
-                return StsClient()
-            elif name == 'ssm':
-                return SsmClient()
-            raise AssertionError("non-mocked boto3 call")
-
-        def fake_awscreds(self, environment):
-            return {
-                'accessKeyId': ':)',
-                'secretAccessKey': '0-..',
-                'sessionToken': '$',
-            }
-
         sys.stdout = StringIO()
         with open(TEST_CONFIG, 'wt') as f:
             f.write(test_config_file)
 
-        with mock.patch('boto3.client', fake_boto3_client):
+        fake_aws = self.FakeAws()
+
+        with fake_aws.patch():
             with mock.patch.object(config.AWSCredentialCache,
-                                   'get_awscreds', fake_awscreds):
+                                   'get_awscreds', self.fake_awscreds):
                 config.main(['-c', TEST_CONFIG, 'render', 'prod',
                              '--parameter-store', '/super-service/blah'])
 
@@ -401,5 +411,66 @@ class TestCLIConfig(unittest.TestCase):
                 '/super-service/blah/nest/bird': 'pigeon',
                 '/super-service/blah/nest/tree': 'birch',
             },
-            fake_parameter_store
+            fake_aws.fake_parameter_store
+        )
+
+    def _test_bad_config(self, config_arg, error_msg,
+                         prefix='/super-service/blah'):
+        with mock.patch.object(config.AWSCredentialCache,
+                               'get_awscreds', self.fake_awscreds):
+            try:
+                config.write_to_parameter_store(
+                    'prod', prefix, config_arg)
+                self.fail('Expected ValueError')
+            except ValueError as ve:
+                self.assertTrue(error_msg in str(ve),
+                                msg='Error msg "{}"" not found n exception '
+                                    'string "{}".'.format(error_msg, str(ve)))
+
+    def test_render_parameter_store_bad_prefix(self, *args):
+        self._test_bad_config(
+            {
+                'a': 'a',
+            },
+            'Parameter store names must be fully qualified',
+            prefix='no-slash',
+        )
+
+    def test_render_parameter_store_validate_bad_text(self, *args):
+        self._test_bad_config(
+            {
+                'hello how are you': ':)'
+            },
+            'invalid parameter name'
+        )
+
+    def test_render_parameter_store_validate_str_or_dict(self, *args):
+        self._test_bad_config(
+            {
+                'bool': True
+            },
+            'all config values must be strings or dictionaries'
+        )
+
+    def test_render_parameter_store_validate_str_or_dict_2(self, *args):
+        self._test_bad_config(
+            {
+                'list': ['1', '2', '3'],
+            },
+            'all config values must be strings or dictionaries'
+        )
+
+    def test_render_parameter_store_validate_hierarchy(self, *args):
+        root_bad_config = {}
+        bad_config = root_bad_config
+        for i in range(15):
+            bad_config['n'] = {}
+            bad_config = bad_config['n']
+
+        self._test_bad_config(
+            root_bad_config,
+            'Error writing name '
+            '"/super-service/blah/n/n/n/n/n/n/n/n/n/n/n/n/n/n": '
+            'parameter store names allow for no more than 15 levels '
+            'of hierarchy.'
         )

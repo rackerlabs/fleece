@@ -3,6 +3,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -19,6 +20,8 @@ from fleece.cli.run import run
 
 if six.PY2:
     input = raw_input
+
+PARAMETER_STORE_NAME = re.compile('/[a-zA-Z0-9_\\.\\-\\/]*$')
 
 
 class AWSCredentialCache(object):
@@ -270,28 +273,27 @@ def _read_config_file(args):
     return config['stages'], config['config']
 
 
-def write_to_parameter_store(args, config):
-    env = args.environment or args.stage
+def write_to_parameter_store(env, prefix, config):
     environment = _get_environment(env)
     awscreds = STATE['awscreds'].get_awscreds(environment)
 
-    sts = boto3.client("sts",
-                       aws_access_key_id=awscreds['accessKeyId'],
-                       aws_secret_access_key=awscreds['secretAccessKey'],
-                       aws_session_token=awscreds['sessionToken'])
-    account_id = sts.get_caller_identity()["Account"]
-
-    ssm = boto3.client('ssm',
-                       aws_access_key_id=awscreds['accessKeyId'],
-                       aws_secret_access_key=awscreds['secretAccessKey'],
-                       aws_session_token=awscreds['sessionToken'])
-
-    prefix = args.parameter_store
-
-    print('Writing config with parameter store prefix {prefix} to AWS '
-          'account {account_id}'.format(prefix=prefix, account_id=account_id))
+    if not prefix.startswith('/'):
+        msg = ('Parameter store names must be fully qualified (start with a '
+               'slash), so the given prefix "{}"" is invalid.'.format(prefix))
+        raise ValueError(msg)
 
     def validate(name, value):
+        if name.count('/') > 15:
+            msg = ('Error writing name "{}": parameter store names allow for '
+                   'no more than 15 levels of hierarchy.'.format(name))
+            raise ValueError(msg)
+
+        if not PARAMETER_STORE_NAME.match(name):
+            msg = ('Error: invalid parameter name "{}". Parameter store names '
+                   'may consist of only symbols and letters (a-zA-Z0-9_.-/)'
+                   .format(name))
+            raise ValueError(msg)
+
         if not isinstance(value, (six.string_types, dict)):
             msg = ('Error: all config values must be strings or dictionaries '
                    'to work with parameter store, can\'t handle {} of type {}'
@@ -302,6 +304,20 @@ def write_to_parameter_store(args, config):
                 validate('{}/{}'.format(name, k), v)
 
     validate(prefix, config)
+
+    sts = boto3.client("sts",
+                       aws_access_key_id=awscreds['accessKeyId'],
+                       aws_secret_access_key=awscreds['secretAccessKey'],
+                       aws_session_token=awscreds['sessionToken'])
+    account_id = sts.get_caller_identity()["Account"]
+
+    print('Writing config with parameter store prefix {prefix} to AWS '
+          'account {account_id}'.format(prefix=prefix, account_id=account_id))
+
+    ssm = boto3.client('ssm',
+                       aws_access_key_id=awscreds['accessKeyId'],
+                       aws_secret_access_key=awscreds['secretAccessKey'],
+                       aws_session_token=awscreds['sessionToken'])
 
     def put(name, value):
         if isinstance(value, dict):
@@ -329,7 +345,11 @@ def render_config(args, output_file=None):
     env = args.environment or args.stage
 
     if args.parameter_store is not None:
-        return write_to_parameter_store(args, config)
+        return write_to_parameter_store(
+            env=args.environment or args.stage,
+            prefix=args.parameter_store,
+            config=config
+        )
 
     if args.json or args.encrypt or args.python:
         rendered_config = json.dumps(

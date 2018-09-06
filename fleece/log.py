@@ -175,6 +175,7 @@ def setup_root_logger(level=logging.DEBUG, stream=DEFAULT_STREAM,
     stream_handler.setLevel(level)
     stream_handler.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
     root_logger.addHandler(stream_handler)
+    root_logger.setLevel(level)
 
 
 def get_logger(name=None, level=None, stream=DEFAULT_STREAM,

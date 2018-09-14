@@ -8,6 +8,7 @@ import sys
 
 import boto3
 import ruamel.yaml as yaml
+import ruamel.yaml.comments
 import six
 if six.PY2:  # noqa
     from StringIO import StringIO
@@ -114,7 +115,7 @@ def _encrypt_item(data, stage, key):
                              'it does not belong to a stage\n'.format(key))
         else:
             data = ':decrypt:' + _encrypt_text(data[9:], stage)
-    elif isinstance(data, dict):
+    elif isinstance(data, (dict, ruamel.yaml.comments.CommentedMap)):
         per_stage = [k.startswith('+') for k in data]
         if any(per_stage):
             if not all(per_stage):
@@ -165,7 +166,7 @@ def _decrypt_item(data, stage, key, render):
         data = _decrypt_text(data[9:], stage)
         if not render or render == 'ssm':
             data = ':encrypt:' + data
-    elif isinstance(data, dict):
+    elif isinstance(data, (dict, ruamel.yaml.comments.CommentedMap)):
         if len(data) == 0:
             return data
         per_stage = [k.startswith('+') for k in data]
@@ -227,6 +228,7 @@ def export_config(args, output_file=None):
                 } for env in STATE['awscreds'].environments
             },
             'config': {}}
+
     if args.json:
         output_file.write(json.dumps(config, indent=4))
     elif config:

@@ -47,7 +47,7 @@ EXTRAS_REQUIRE = {
         'Werkzeug==0.12.2',
     ],
     'cli': [
-        'docker==2.5.1',
+        'docker==3.5.0',
         'PyYAML>=3.12',
         'ruamel.yaml>=0.15.34',
         'six>=1.11.0'

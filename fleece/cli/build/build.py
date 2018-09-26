@@ -262,7 +262,7 @@ def _build(service_name, python_version, src_dir, requirements_path,
     except:
         raise RuntimeError("Docker not found.")
 
-    image = docker_api.images.build(
+    image, _logs = docker_api.images.build(
         path=build_dir, tag=service_name,
         buildargs={'python_version': python_version,
                    'deps': ' '.join(dependencies)})

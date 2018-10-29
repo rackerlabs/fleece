@@ -3,6 +3,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -19,6 +20,8 @@ from fleece.cli.run import run
 
 if six.PY2:
     input = raw_input
+
+PARAMETER_STORE_NAME = re.compile('/[a-zA-Z0-9_\\.\\-\\/]*$')
 
 
 class AWSCredentialCache(object):
@@ -259,26 +262,105 @@ def edit_config(args):
     os.unlink(filename)
 
 
-def render_config(args, output_file=None):
-    if not output_file:
-        output_file = sys.stdout
+def _read_config_file(args):
+    """Decrypt config file, returns a tuple with stages and config."""
     stage = args.stage
-    env = args.environment or stage
     with open(args.config, 'rt') as f:
         config = yaml.safe_load(f.read())
     STATE['stages'] = config['stages']
     config['config'] = _decrypt_item(config['config'], stage=stage, key='',
                                      render=True)
+    return config['stages'], config['config']
+
+
+def write_to_parameter_store(env, prefix, config):
+    environment = _get_environment(env)
+    awscreds = STATE['awscreds'].get_awscreds(environment)
+
+    if not prefix.startswith('/'):
+        msg = ('Parameter store names must be fully qualified (start with a '
+               'slash), so the given prefix "{}"" is invalid.'.format(prefix))
+        raise ValueError(msg)
+
+    def validate(name, value):
+        if name.count('/') > 15:
+            msg = ('Error writing name "{}": parameter store names allow for '
+                   'no more than 15 levels of hierarchy.'.format(name))
+            raise ValueError(msg)
+
+        if not PARAMETER_STORE_NAME.match(name):
+            msg = ('Error: invalid parameter name "{}". Parameter store names '
+                   'may consist of only symbols and letters (a-zA-Z0-9_.-/)'
+                   .format(name))
+            raise ValueError(msg)
+
+        if not isinstance(value, (six.string_types, dict)):
+            msg = ('Error: all config values must be strings or dictionaries '
+                   'to work with parameter store, can\'t handle {} of type {}'
+                   .format(name, type(value)))
+            raise ValueError(msg)
+        elif isinstance(value, dict):
+            for k, v in value.items():
+                validate('{}/{}'.format(name, k), v)
+
+    validate(prefix, config)
+
+    sts = boto3.client("sts",
+                       aws_access_key_id=awscreds['accessKeyId'],
+                       aws_secret_access_key=awscreds['secretAccessKey'],
+                       aws_session_token=awscreds['sessionToken'])
+    account_id = sts.get_caller_identity()["Account"]
+
+    print('Writing config with parameter store prefix {prefix} to AWS '
+          'account {account_id}'.format(prefix=prefix, account_id=account_id))
+
+    ssm = boto3.client('ssm',
+                       aws_access_key_id=awscreds['accessKeyId'],
+                       aws_secret_access_key=awscreds['secretAccessKey'],
+                       aws_session_token=awscreds['sessionToken'])
+
+    def put(name, value):
+        if isinstance(value, dict):
+            for k, v in value.items():
+                put('{}/{}'.format(name, k), v)
+        elif isinstance(value, six.string_types):
+            ps_name = name
+            print('Writing {}...'.format(ps_name))
+            ssm.put_parameter(
+                Name=ps_name,
+                Value=value,
+                Type='SecureString',
+                Overwrite=True,
+            )
+
+    put(prefix, config)
+
+
+def render_config(args, output_file=None):
+    if not output_file:
+        output_file = sys.stdout
+
+    stages, config = _read_config_file(args)
+
+    env = args.environment or args.stage
+
+    if args.parameter_store is not None:
+        return write_to_parameter_store(
+            env=args.environment or args.stage,
+            prefix=args.parameter_store,
+            config=config
+        )
+
     if args.json or args.encrypt or args.python:
         rendered_config = json.dumps(
-            config['config'], indent=None if args.encrypt else 4,
+            config, indent=None if args.encrypt else 4,
             separators=(',', ':') if args.encrypt else (',', ': '))
     else:
         buf = StringIO()
-        yaml.round_trip_dump(config['config'], buf)
+        yaml.round_trip_dump(config, buf)
         rendered_config = buf.getvalue()
     if args.encrypt or args.python:
-        STATE['stages'] = config['stages']
+        STATE['stages'] = stages
         encrypted_config = []
         while rendered_config:
             buffer = _encrypt_text(rendered_config[:4096], env)
@@ -359,6 +441,10 @@ def parse_args(args):
     render_parser.add_argument('--python', action='store_true',
                                help=('Generate Python module with encrypted '
                                      'configuration'))
+    render_parser.add_argument('--parameter-store', type=str, default=None,
+                               help=('Write configuration to AWS '
+                                     'parameter-store using the given prefix '
+                                     'for the selected stage\'s environment'))
     render_parser.add_argument('stage', help='Target stage name')
     render_parser.set_defaults(func=render_config)
 

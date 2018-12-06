@@ -85,8 +85,10 @@ def clean_up_container(container, clean_up_volumes=True):
 
 def retrieve_archive(container, dist_dir):
     stream, stat = container.get_archive('/dist/lambda_function.zip')
-    raw_data = stream.read()
-    f = BytesIO(raw_data)
+    f = BytesIO()
+    for chunk in stream:
+        f.write(chunk)
+    f.seek(0)
     with tarfile.open(fileobj=f, mode='r') as t:
         t.extractall(path=dist_dir)
 
@@ -115,7 +117,13 @@ def destroy_volume(name):
         volume = api.volumes.get(name)
     except errors.NotFound:
         return
-    volume.remove()
+    try:
+        volume.remove()
+    except docker.errors.APIError as exc:
+        if '409 Client Error' in str(exc):
+            print('Unable to remove volume - {}\n{}'.format(name, str(exc)))
+        else:
+            raise
 
 
 def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):
@@ -323,10 +331,13 @@ def _build(service_name, python_version, src_dir, requirements_path,
         detach=True)
     for line in container.logs(stream=True, follow=True):
         sys.stdout.write(line.decode('utf-8'))
-    exit_code = container.wait()
+    status = container.wait()
+    exit_code = status.get('StatusCode')
+    error_msg = status.get('Error')
 
-    if exit_code:
-        print('Error: build ended with exit code = {}.'.format(exit_code))
+    if exit_code or exit_code is None:
+        print('Error: build ended with exit code = '
+              '{}\nError Message: {}.'.format(exit_code, error_msg))
     else:
         # Pull out our built zip
         retrieve_archive(container, dist_dir)

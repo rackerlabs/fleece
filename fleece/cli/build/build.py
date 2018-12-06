@@ -85,8 +85,10 @@ def clean_up_container(container, clean_up_volumes=True):
 
 def retrieve_archive(container, dist_dir):
     stream, stat = container.get_archive('/dist/lambda_function.zip')
-    raw_data = stream.read()
-    f = BytesIO(raw_data)
+    f = BytesIO()
+    for chunk in stream:
+        f.write(chunk)
+    f.seek(0)
     with tarfile.open(fileobj=f, mode='r') as t:
         t.extractall(path=dist_dir)
 

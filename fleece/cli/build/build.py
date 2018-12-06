@@ -323,10 +323,13 @@ def _build(service_name, python_version, src_dir, requirements_path,
         detach=True)
     for line in container.logs(stream=True, follow=True):
         sys.stdout.write(line.decode('utf-8'))
-    exit_code = container.wait()
+    status = container.wait()
+    exit_code = status.get('StatusCode')
+    error_msg = status.get('Error')
 
-    if exit_code:
-        print('Error: build ended with exit code = {}.'.format(exit_code))
+    if exit_code or exit_code is None:
+        print('Error: build ended with exit code = '
+              '{}\nError Message: {}.'.format(exit_code, error_msg))
     else:
         # Pull out our built zip
         retrieve_archive(container, dist_dir)

@@ -117,7 +117,13 @@ def destroy_volume(name):
         volume = api.volumes.get(name)
     except errors.NotFound:
         return
-    volume.remove()
+    try:
+        volume.remove()
+    except docker.errors.APIError as exc:
+        if '409 Client Error' in str(exc):
+            print('Unable to remove volume - {}\n{}'.format(name, str(exc)))
+        else:
+            raise
 
 
 def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):

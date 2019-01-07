@@ -2,24 +2,17 @@ import six
 import base64
 import json
 import os
-import re
 import sys
 import unittest
 
 import yaml
 
 from fleece.cli.config import config
+from fleece import utils
 
 if six.PY2:
     import mock
     from StringIO import StringIO
-
-    # fullmatch is not available on PY2
-    def fullmatch(pattern, text, *args, **kwargs):
-        match = re.match(pattern, text, *args, **kwargs)
-        return match if match.group(0) == text else None
-
-    re.fullmatch = fullmatch
 else:
     from unittest import mock
     from io import StringIO
@@ -105,7 +98,7 @@ def mock_encrypt(text, stage):
 def mock_decrypt(text, stage):
     s, d = base64.b64decode(text.encode('utf-8')).decode('utf-8').split(':', 1)
     stage = stage.split(':')[-1]
-    if s != stage and not re.fullmatch(s.split('/')[1], stage):
+    if s != stage and not utils.fullmatch(s.split('/')[1], stage):
         raise RuntimeError('wrong stage:' + s + ':' + stage)
     return d
 

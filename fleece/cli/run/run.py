@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 import argparse
 import os
-import re
 import subprocess
 import sys
 
 import boto3
 import requests
 import yaml
+
+from fleece import utils
 
 
 RS_AUTH_ERROR = 'Rackspace authentication failed:\nStatus: {}\nResponse: {}'
@@ -100,7 +101,7 @@ def get_stage_data(stage, data):
         return data[stage]
     for s in data:
         if s.startswith('/'):
-            if re.fullmatch(s.split('/')[1], stage):
+            if utils.fullmatch(s.split('/')[1], stage):
                 return data[s]
     return None
 

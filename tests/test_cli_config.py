@@ -344,16 +344,31 @@ class TestCLIConfig(unittest.TestCase):
                     return {'Account': '12345'}
 
             class SsmClient:
-                def put_parameter(self_2, Name, Value, Type, Overwrite):
+                def put_parameter(self_2, Name, Value, Type, Overwrite,
+                                  KeyId=None):
                     self.fake_parameter_store[Name] = Value
                     assert Type == 'SecureString'
                     assert Overwrite
+
+            class KmsClient:
+                def describe_key(self, KeyId):
+                    key_arn = (
+                        'arn:aws:kms:us-east-1:123456789012:key/'
+                        '11111111-2222-3333-4444-555555555555'
+                    )
+                    return {
+                        'KeyMetadata': {
+                            'KeyId': key_arn
+                        }
+                    }
 
             def fake_boto3_client(name, *args, **kwargs):
                 if name == 'sts':
                     return StsClient()
                 elif name == 'ssm':
                     return SsmClient()
+                elif name == 'kms':
+                    return KmsClient()
                 raise AssertionError("non-mocked boto3 call")
 
             self._fake_boto3_client = fake_boto3_client

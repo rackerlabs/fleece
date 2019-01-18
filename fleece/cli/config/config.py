@@ -273,7 +273,7 @@ def _read_config_file(args):
     return config['stages'], config['config']
 
 
-def write_to_parameter_store(env, prefix, config):
+def write_to_parameter_store(env, prefix, config, ssm_kms_key=None):
     environment = _get_environment(env)
     awscreds = STATE['awscreds'].get_awscreds(environment)
 
@@ -318,6 +318,10 @@ def write_to_parameter_store(env, prefix, config):
                        aws_access_key_id=awscreds['accessKeyId'],
                        aws_secret_access_key=awscreds['secretAccessKey'],
                        aws_session_token=awscreds['sessionToken'])
+    kms = boto3.client('kms',
+                       aws_access_key_id=awscreds['accessKeyId'],
+                       aws_secret_access_key=awscreds['secretAccessKey'],
+                       aws_session_token=awscreds['sessionToken'])
 
     def put(name, value):
         if isinstance(value, dict):
@@ -326,11 +330,19 @@ def write_to_parameter_store(env, prefix, config):
         elif isinstance(value, six.string_types):
             ps_name = name
             print('Writing {}...'.format(ps_name))
+            if ssm_kms_key is not None:
+                # fetch the full keyid from the alias
+                ssm_kms_key_id = kms.describe_key(
+                    KeyId=ssm_kms_key
+                )['KeyMetadata']['KeyId']
+            else:
+                ssm_kms_key_id = None
             ssm.put_parameter(
                 Name=ps_name,
                 Value=value,
                 Type='SecureString',
                 Overwrite=True,
+                KeyId=ssm_kms_key_id,
             )
 
     put(prefix, config)
@@ -348,7 +360,8 @@ def render_config(args, output_file=None):
         return write_to_parameter_store(
             env=args.environment or args.stage,
             prefix=args.parameter_store,
-            config=config
+            config=config,
+            ssm_kms_key=args.ssm_kms_key,
         )
 
     if args.json or args.encrypt or args.python:
@@ -445,6 +458,15 @@ def parse_args(args):
                                help=('Write configuration to AWS '
                                      'parameter-store using the given prefix '
                                      'for the selected stage\'s environment'))
+    render_parser.add_argument(
+        '--ssm-kms-key',
+        type=str,
+        default=None,
+        help=(
+            'KMS key ID or alias to use for encrypting config in SSM. Use with'
+            ' `--parameter-store`.'
+        ),
+    )
     render_parser.add_argument('stage', help='Target stage name')
     render_parser.set_defaults(func=render_config)
 

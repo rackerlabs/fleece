@@ -401,9 +401,12 @@ Writes the contents of `config.yml` to `stdout` in the open format for editing. 
 
 This command exports the configuration to a temp file, then starts a text editor (`vi` by default) on this file. After the editor is closed, the modified file is re-imported. This is the most convenient workflow to edit the configuration.
 
-#### `fleece config render [--environment] [--json] [--encrypt] [--python] [--parameter-store PARAMETER_STORE_PREFIX] <stage>`
+#### `fleece config render [--environment] [--json] [--encrypt] [--python] [--parameter-store PARAMETER_STORE_PREFIX] [--ssm-kms-key SSM_KMS_KEY] <stage>`
 
 Writes the configuration variables for the given environment to stdout or uploads them to parameter store. There are four output options: YAML plaintext (the default), JSON plaintext (with `--json`), JSON encrypted (with `--encrypt`) and an encrypted Python module (with `--python`).
+
+Parameters uploaded into SSM are encrypted by default, using the default SSM encryption key. If you want to use a custom KMS key to encrypt parameters, use the `--ssm-kms-key` option.
+For this value, you can pass in a KMS key ID, ARN, alias name, or alias ARN. This feature enables a use case where parameters are copied from SSM into a Lambda Function environment configuration at deploy time, and a custom KMS key is configured for that function to decrypt config at runtime.
 
 The encrypted configuration consists on a list of encrypted buffers that need to be decrypted and appended. The result of this operation is the JSON plaintext configuration. The following output is the output of `--python`, which includes the decrypt and decode logic:
 

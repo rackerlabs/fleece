@@ -345,8 +345,13 @@ class TestCLIConfig(unittest.TestCase):
 
             class SsmClient:
                 def put_parameter(self_2, Name, Value, Type, Overwrite,
-                                  KeyId=None):
+                                  **kwargs):
                     self.fake_parameter_store[Name] = Value
+                    if 'KeyId' in kwargs:
+                        assert isinstance(kwargs["KeyId"], str)
+                        del kwargs['KeyId']
+                    assert len(kwargs) == 0
+
                     assert Type == 'SecureString'
                     assert Overwrite
 

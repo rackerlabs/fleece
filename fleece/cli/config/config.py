@@ -337,12 +337,15 @@ def write_to_parameter_store(env, prefix, config, ssm_kms_key=None):
                 )['KeyMetadata']['KeyId']
             else:
                 ssm_kms_key_id = None
+            kwargs = {}
+            if ssm_kms_key_id:
+                kwargs["KeyId"] = ssm_kms_key_id
             ssm.put_parameter(
                 Name=ps_name,
                 Value=value,
                 Type='SecureString',
                 Overwrite=True,
-                KeyId=ssm_kms_key_id,
+                **kwargs
             )
 
     put(prefix, config)

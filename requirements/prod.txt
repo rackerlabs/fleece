@@ -2,7 +2,7 @@ boto3>=1.0.0
 connexion==1.1.9
 Flask==0.12.4
 requests==2.20.0
-ruamel.yaml==0.15.34
+ruamel.yaml==0.15.94
 six==1.11.0
 structlog==16.0.0
 Werkzeug==0.12.2

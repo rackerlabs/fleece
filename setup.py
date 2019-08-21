@@ -44,7 +44,7 @@ EXTRAS_REQUIRE = {
     'connexion': [
         'connexion==1.1.9',
         'Flask==0.12.2',
-        'Werkzeug==0.12.2',
+        'Werkzeug==0.15.3',
     ],
     'cli': [
         'docker==3.5.0',
@@ -53,7 +53,7 @@ EXTRAS_REQUIRE = {
         'six>=1.11.0'
     ],
     'wsgi': [
-        'Werkzeug==0.12.2',
+        'Werkzeug==0.15.3',
     ],
 }
 

@@ -5,6 +5,7 @@ from random import random
 import sys
 import time
 
+from six import string_types
 import structlog
 
 LOG_FORMAT = '%(message)s'
@@ -100,7 +101,7 @@ def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT,
     """
     # Ensure we are talking the same type of logging levels
     # if they passed in a string we need to convert it to a number
-    if isinstance(level, basestring):
+    if isinstance(level, string_types):
         level = logging.getLevelName(level)
 
     for handler in logger.handlers:

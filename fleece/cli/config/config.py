@@ -19,7 +19,7 @@ else:
 from fleece.cli.run import run
 
 if six.PY2:
-    input = raw_input
+    input = raw_input  # noqa
 
 PARAMETER_STORE_NAME = re.compile('/[a-zA-Z0-9_\\.\\-\\/]*$')
 

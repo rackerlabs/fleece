@@ -91,7 +91,7 @@ jobs:
   test_style:
     working_directory: ~/repo
     docker:
-      - image: circleci/python:2.7.15
+      - image: circleci/python:3.6.6
     steps:
       - checkout
       - restore_cache:

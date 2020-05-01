@@ -16,6 +16,7 @@ from collections import namedtuple
 import json
 import os
 import socket
+import string
 import threading
 import time
 import uuid
@@ -483,3 +484,15 @@ def monkey_patch_requests_for_xray():
         'Session.send',
         xray_requests_send,
     )
+
+
+def to_safe_annotation_key(key):
+    """Xray doesn't like keys that have punctuations
+    and likes to silently drop things."""
+    safe_key = key.translate(str.maketrans('', '', string.punctuation))
+    return safe_key
+
+
+def to_safe_annotation_value(value):
+    """Xray doesn't like values that are not strings."""
+    return str(value)

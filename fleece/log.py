@@ -203,4 +203,20 @@ def get_logger(name=None, level=None, stream=DEFAULT_STREAM,
     return log
 
 
+def initial_trace_and_context_binds(logger, trace_id, lambda_context):
+    """A helper to set up standard trace_id and lambda_context binds"""
+    return logger.new(
+        trace_id=trace_id,
+        lambda_context={
+            "function_name": lambda_context.function_name,
+            "function_version": lambda_context.function_version,
+            "invoked_function_arn": lambda_context.invoked_function_arn,
+            "memory_limit_in_mb": lambda_context.memory_limit_in_mb,
+            "aws_request_id": lambda_context.aws_request_id,
+            "log_group_name": lambda_context.log_group_name,
+            "log_stream_name": lambda_context.log_stream_name,
+        }
+    )
+
+
 getLogger = get_logger

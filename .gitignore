@@ -71,3 +71,6 @@ README.rst
 
 .vscode/
 .mypy_cache/
+!/poetry.lock
+.venv/
+requirements.txt

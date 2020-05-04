@@ -1,0 +1,106 @@
+[tool.poetry]
+name = "fleece"
+version = "1.0.0"
+description = "Wrap the lamb...da"
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/rackerlabs/fleece"
+repository = "https://github.com/rackerlabs/fleece"
+keywords = ['fleece', 'lambda']
+classifiers = [
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: Apache Software License',
+    'Operating System :: OS Independent',
+    'Topic :: Software Development',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+]
+
+authors = ["Bruce Stringer <bruce.stringer@rackspace.com>"]
+maintainers = ["Bruce Stringer <bruce.stringer@rackspace.com>"]
+
+include = ["fleece/cli/build/Dockerfile", "fleece/cli/build/docker_build_lambda.sh"]
+
+packages = [
+    { include = "fleece" }
+]
+
+[tool.poetry.scripts]
+fleece = "fleece.cli.main:main"
+
+[tool.poetry.extras]
+connexion = [
+    "connexion",
+    "Flask",
+    "Werkzeug",
+]
+cli = [
+    "docker",
+    "PyYAML",
+    "ruamel.yaml",
+    "six",
+]
+wsgi = [
+    "Werkzeug",
+]
+
+[tool.poetry.dependencies]
+python    = "^3.6"
+# connecxion
+connexion     = { version = "1.1.9", optional = true }
+Flask         = { version = "0.12.3", optional = true }
+# cli
+docker        = { version = "3.5.1", optional = true }
+PyYAML        = { version = ">=3.12", optional = true }
+"ruamel.yaml" = { version = ">=0.15.34", optional = true }
+six           = { version = ">=1.11.0", optional = true}
+# wsgi and connecxion
+Werkzeug      = { version = "0.15.5", optional = true }
+structlog     = ">=15.3.0"
+requests      = ">=2.9.1"
+boto3         = ">=1.0.0"
+wrapt         = ">=1.10.10"
+
+[tool.poetry.dev-dependencies]
+coverage      = ">=4.0.3"
+flake8        = ">=2.5.1"
+mock          = ">=1.3.0"
+nose          = ">=1.3.7"
+pylint        = ">=1.5.4"
+docker        = "3.5.1"
+taskipy       = "^1.2.1"
+moto          = "^1.3.14"
+black         = "^19.10b0"
+safety        = "^1.9.0"
+isort         = "^4.3.21"
+pytest        = "^5.4.1"
+Werkzeug      = "0.15.5"
+bandit        = "^1.6.2"
+"ruamel.yaml" = ">=0.15.34"
+Flask         = "0.12.3"
+connexion     = "1.1.9"
+
+[tool.taskipy.tasks]
+pytest = "pytest"
+bandit = "bandit -c .bandit.yml -r fleece/"
+black = "black fleece"
+black_ci = "black -check fleece"
+flake8 = "flake8 fleece/ tests/"
+generate_requirements = "poetry export -f requirements.txt -o requirements.txt"
+pre_safety = "task generate_requirements"
+safety = "safety check  -r requirements.txt"
+isort = "isort -rc fleece"
+isort_ci = "isort -rc -c fleece"
+full = "task pytest && task black && task flake8 && task safety && task bandit && task isort"
+ci = "task pytest && task black_ci && task flake8 && task safety && task bandit && task isort_ci"
+
+[tool.isort]
+force_single_line = true
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+

@@ -1,6 +1,6 @@
 FROM amazonlinux:1
 
-ARG python_version=python27
+ARG python_version=python36
 ARG deps
 
 RUN echo 'exclude=filesystem' >> /etc/yum.conf

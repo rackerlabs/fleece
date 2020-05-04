@@ -176,8 +176,7 @@ def build(args):
         potential_req_file = os.path.join(service_dir, 'src/requirements.txt')
         potential_pipfile = os.path.join(service_dir, 'Pipfile.lock')
 
-        if (os.path.exists(potential_pipfile) and
-                not os.path.exists(potential_req_file)):
+        if os.path.exists(potential_pipfile) and not os.path.exists(potential_req_file):
             pipfile = potential_pipfile
         else:
             if os.path.exists(potential_pipfile):
@@ -267,7 +266,7 @@ def _build(service_name, python_version, src_dir, requirements_path,
 
     try:
         docker_api = docker.from_env(version='auto')
-    except:
+    except:  # noqa
         raise RuntimeError("Docker not found.")
 
     image, _logs = docker_api.images.build(
@@ -276,7 +275,7 @@ def _build(service_name, python_version, src_dir, requirements_path,
                    'deps': ' '.join(dependencies)})
 
     with open(requirements_path, 'rb') as fp:
-        dependencies_sha1 = hashlib.sha1(fp.read()).hexdigest()
+        dependencies_sha1 = hashlib.sha1(fp.read()).hexdigest()  # nosec
 
     # Set up volumes
     src_name = '{}-src'.format(service_name)

@@ -1,23 +1,22 @@
-from functools import wraps
 import logging
 import os
-from random import random
 import sys
 import time
+from functools import wraps
+from random import random
 
-from six import string_types
 import structlog
+from six import string_types
 
-LOG_FORMAT = '%(message)s'
+LOG_FORMAT = "%(message)s"
 DEFAULT_STREAM = sys.stdout
 WRAPPED_DICT_CLASS = structlog.threadlocal.wrap_dict(dict)
-ENV_APIG_REQUEST_ID = '_FLEECE_APIG_REQUEST_ID'
-ENV_LAMBDA_REQUEST_ID = '_FLEECE_LAMBDA_REQUEST_ID'
+ENV_APIG_REQUEST_ID = "_FLEECE_APIG_REQUEST_ID"
+ENV_LAMBDA_REQUEST_ID = "_FLEECE_LAMBDA_REQUEST_ID"
 
 
 def clobber_root_handlers():
-    [logging.root.removeHandler(handler) for handler in
-     logging.root.handlers[:]]
+    [logging.root.removeHandler(handler) for handler in logging.root.handlers[:]]
 
 
 class logme(object):
@@ -31,7 +30,6 @@ class logme(object):
             self.logger = logger
 
     def __call__(self, func):
-
         def wrapped(*args, **kwargs):
             self.logger.log(self.level, "Entering %s", func.__name__)
             response = func(*args, **kwargs)
@@ -63,8 +61,15 @@ class RetryHandler(logging.Handler):
                          re-raised. If set to True, the error is silently
                          ignored. The default is True.
     """
-    def __init__(self, handler, max_retries=5, backoff_base=0.1,
-                 backoff_cap=1, ignore_errors=True):
+
+    def __init__(
+        self,
+        handler,
+        max_retries=5,
+        backoff_base=0.1,
+        backoff_cap=1,
+        ignore_errors=True,
+    ):
         super(RetryHandler, self).__init__()
         self.handler = handler
         self.max_retries = max_retries
@@ -80,10 +85,10 @@ class RetryHandler(logging.Handler):
 
         sleep = self.backoff_base
         for i in range(self.max_retries):
-            time.sleep(sleep * random())
+            time.sleep(sleep * random())  # nosec
             try:
                 return self.handler.emit(record)
-            except:
+            except:  # noqa nosec
                 pass
             sleep = min(self.backoff_cap, sleep * 2)
 
@@ -91,8 +96,7 @@ class RetryHandler(logging.Handler):
             raise exc
 
 
-def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT,
-                       stream=DEFAULT_STREAM):
+def _has_streamhandler(logger, level=None, fmt=LOG_FORMAT, stream=DEFAULT_STREAM):
     """Check the named logger for an appropriate existing StreamHandler.
 
     This only returns True if a StreamHandler that exaclty matches
@@ -124,9 +128,10 @@ def inject_request_ids_into_environment(func):
     def wrapper(event, context):
         # This might not always be an API Gateway event, so only log the
         # request ID, if it looks like to be coming from there.
-        if 'requestContext' in event:
-            os.environ[ENV_APIG_REQUEST_ID] = event['requestContext'].get(
-                'requestId', 'N/A')
+        if "requestContext" in event:
+            os.environ[ENV_APIG_REQUEST_ID] = event["requestContext"].get(
+                "requestId", "N/A"
+            )
         os.environ[ENV_LAMBDA_REQUEST_ID] = context.aws_request_id
         return func(event, context)
 
@@ -136,9 +141,9 @@ def inject_request_ids_into_environment(func):
 def add_request_ids_from_environment(logger, name, event_dict):
     """Custom processor adding request IDs to the log event, if available."""
     if ENV_APIG_REQUEST_ID in os.environ:
-        event_dict['api_request_id'] = os.environ[ENV_APIG_REQUEST_ID]
+        event_dict["api_request_id"] = os.environ[ENV_APIG_REQUEST_ID]
     if ENV_LAMBDA_REQUEST_ID in os.environ:
-        event_dict['lambda.request_id'] = os.environ[ENV_LAMBDA_REQUEST_ID]
+        event_dict["lambda.request_id"] = os.environ[ENV_LAMBDA_REQUEST_ID]
     return event_dict
 
 
@@ -156,19 +161,19 @@ def _configure_logger(logger_factory=None, wrapper_class=None):
             structlog.stdlib.add_log_level,
             structlog.stdlib.add_logger_name,
             structlog.stdlib.PositionalArgumentsFormatter(),
-            structlog.processors.TimeStamper(fmt='iso'),
+            structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer(sort_keys=True)
+            structlog.processors.JSONRenderer(sort_keys=True),
         ],
         context_class=WRAPPED_DICT_CLASS,
         logger_factory=logger_factory,
         wrapper_class=wrapper_class,
-        cache_logger_on_first_use=True)
+        cache_logger_on_first_use=True,
+    )
 
 
-def setup_root_logger(level=logging.DEBUG, stream=DEFAULT_STREAM,
-                      logger_factory=None):
+def setup_root_logger(level=logging.DEBUG, stream=DEFAULT_STREAM, logger_factory=None):
     _configure_logger(logger_factory=logger_factory)
     clobber_root_handlers()
     root_logger = logging.root
@@ -179,13 +184,16 @@ def setup_root_logger(level=logging.DEBUG, stream=DEFAULT_STREAM,
     root_logger.setLevel(level)
 
 
-def get_logger(name=None, level=None, stream=DEFAULT_STREAM,
-               clobber_root_handler=True, logger_factory=None,
-               wrapper_class=None):
+def get_logger(
+    name=None,
+    level=None,
+    stream=DEFAULT_STREAM,
+    clobber_root_handler=True,
+    logger_factory=None,
+    wrapper_class=None,
+):
     """Configure and return a logger with structlog and stdlib."""
-    _configure_logger(
-        logger_factory=logger_factory,
-        wrapper_class=wrapper_class)
+    _configure_logger(logger_factory=logger_factory, wrapper_class=wrapper_class)
     log = structlog.get_logger(name)
     root_logger = logging.root
     if log == root_logger:
@@ -215,7 +223,7 @@ def initial_trace_and_context_binds(logger, trace_id, lambda_context):
             "aws_request_id": lambda_context.aws_request_id,
             "log_group_name": lambda_context.log_group_name,
             "log_stream_name": lambda_context.log_stream_name,
-        }
+        },
     )
 
 

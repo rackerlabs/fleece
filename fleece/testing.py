@@ -15,16 +15,19 @@ class LambdaContext(object):
     Ex:  get_remaining_time_in_millis() simply returns a static value.
      This could be overridden to help test time boxed functions.
     """
-    def __init__(self,
-                 function_name='test_function',
-                 function_version=1,
-                 remaining_time_in_milli=9999,
-                 memory_limit_in_mb=256,
-                 region='us-east-1',
-                 account_id='999999999999',
-                 stage='test_stage',
-                 aws_request_id=None,
-                 client_context=None):
+
+    def __init__(
+        self,
+        function_name="test_function",
+        function_version=1,
+        remaining_time_in_milli=9999,
+        memory_limit_in_mb=256,
+        region="us-east-1",
+        account_id="999999999999",
+        stage="test_stage",
+        aws_request_id=None,
+        client_context=None,
+    ):
         """
 
         :param function_name: Name of the given function
@@ -67,17 +70,17 @@ class LambdaContext(object):
         return self._remaining_time_in_milli
 
     def _generate_log_group_name(self):
-        log_group_format = '/aws/lambda/{function_name}'
+        log_group_format = "/aws/lambda/{function_name}"
         return log_group_format.format(function_name=self.function_name)
 
     def _generate_log_stream_name(self):
-        stream_format = '{year}/{month}/{day}/[{iterator}]/{random_id}'
+        stream_format = "{year}/{month}/{day}/[{iterator}]/{random_id}"
         return stream_format.format(
             year=datetime.datetime.year,
             month=datetime.datetime.month,
             day=datetime.datetime.day,
-            iterator=str(random.randint(1, 999)),
-            random_id=str(uuid.uuid4()).replace('-', '')
+            iterator=str(random.randint(1, 999)),  # nosec
+            random_id=str(uuid.uuid4()).replace("-", ""),
         )
 
     def _generate_aws_request_id(self):
@@ -93,7 +96,7 @@ class LambdaContext(object):
             region=self._region,
             account_id=self._account_id,
             function_name=self.function_name,
-            stage=self._stage
+            stage=self._stage,
         )
 
 
@@ -111,33 +114,34 @@ class LambdaEvent(object):
                    header={"x-auth-token": "SOME VALUE"})
 
     """
+
     body = {}
     gateway = {
-            "http-method": "GET",
-            "request-id": str(uuid.uuid4()),
-            "resource-path": "/bogus/path/",
-            "stage": "test_stage",
-            "stage-data": {}
+        "http-method": "GET",
+        "request-id": str(uuid.uuid4()),
+        "resource-path": "/bogus/path/",
+        "stage": "test_stage",
+        "stage-data": {},
     }
     header = {
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate",
-            "CloudFront-Forwarded-Proto": "https",
-            "CloudFront-Is-Desktop-Viewer": "true",
-            "CloudFront-Is-Mobile-Viewer": "false",
-            "CloudFront-Is-SmartTV-Viewer": "false",
-            "CloudFront-Is-Tablet-Viewer": "false",
-            "CloudFront-Viewer-Country": "US",
-            "Host": "BOGUS.execute-api.us-east-1.amazonaws.com",
-            "User-Agent": "python-requests/2.9.1",
-            "Via": "1.1 BOGUS.cloudfront.net (CloudFront)",
-            "X-Amz-Cf-Id": "FAKE_TID",
-            "X-Forwarded-For": "127.0.0.1",
-            "X-Forwarded-Port": "443",
-            "X-Forwarded-Proto": "https",
-            "x-auth-token": "FAKE_TOKEN"
+        "Accept": "*/*",
+        "Accept-Encoding": "gzip, deflate",
+        "CloudFront-Forwarded-Proto": "https",
+        "CloudFront-Is-Desktop-Viewer": "true",
+        "CloudFront-Is-Mobile-Viewer": "false",
+        "CloudFront-Is-SmartTV-Viewer": "false",
+        "CloudFront-Is-Tablet-Viewer": "false",
+        "CloudFront-Viewer-Country": "US",
+        "Host": "BOGUS.execute-api.us-east-1.amazonaws.com",
+        "User-Agent": "python-requests/2.9.1",
+        "Via": "1.1 BOGUS.cloudfront.net (CloudFront)",
+        "X-Amz-Cf-Id": "FAKE_TID",
+        "X-Forwarded-For": "127.0.0.1",
+        "X-Forwarded-Port": "443",
+        "X-Forwarded-Proto": "https",
+        "x-auth-token": "FAKE_TOKEN",
     }
-    operation = 'test:operation'
+    operation = "test:operation"
     path = {}
     querystring = {}
     requestor = {
@@ -147,18 +151,20 @@ class LambdaEvent(object):
         "source-ip": "127.0.0.1",
         "user": "",
         "user-agent": "python-requests/2.9.1",
-        "user-arn": ""
+        "user-arn": "",
     }
     merge_dicts = True
 
-    def __init__(self,
-                 body=None,
-                 gateway=None,
-                 header=None,
-                 operation=None,
-                 path=None,
-                 querystring=None,
-                 requestor=None):
+    def __init__(
+        self,
+        body=None,
+        gateway=None,
+        header=None,
+        operation=None,
+        path=None,
+        querystring=None,
+        requestor=None,
+    ):
 
         self.body = body or LambdaEvent.body
         self.gateway = gateway or LambdaEvent.gateway
@@ -188,49 +194,37 @@ class LambdaEvent(object):
         return dict_update(self.path or LambdaEvent.path, merge, kwargs)
 
     def _generate_querystring(self, merge, kwargs):
-        return dict_update(self.querystring or LambdaEvent.querystring, merge,
-                           kwargs)
+        return dict_update(self.querystring or LambdaEvent.querystring, merge, kwargs)
 
     def _generate_requestor(self, merge, kwargs):
-        return dict_update(self.querystring or LambdaEvent.requestor, merge,
-                           kwargs)
+        return dict_update(self.querystring or LambdaEvent.requestor, merge, kwargs)
 
-    def generate(self,
-                 merge_with_default=True,
-                 **kwargs):
+    def generate(self, merge_with_default=True, **kwargs):
 
-        body = self._generate_body(
-            merge_with_default,
-            kwargs.get('body', {}))
-        gateway = self._generate_gateway(
-            merge_with_default,
-            kwargs.get('gateway', {}))
-        header = self._generate_header(
-            merge_with_default,
-            kwargs.get('header', {}))
-        operation = self._generate_operation(kwargs.get('operation', None))
-        path = self._generate_path(
-            merge_with_default,
-            kwargs.get('path', {}))
+        body = self._generate_body(merge_with_default, kwargs.get("body", {}))
+        gateway = self._generate_gateway(merge_with_default, kwargs.get("gateway", {}))
+        header = self._generate_header(merge_with_default, kwargs.get("header", {}))
+        operation = self._generate_operation(kwargs.get("operation", None))
+        path = self._generate_path(merge_with_default, kwargs.get("path", {}))
         querystring = self._generate_querystring(
-            merge_with_default,
-            kwargs.get('querystring', {}))
+            merge_with_default, kwargs.get("querystring", {})
+        )
         requestor = self._generate_requestor(
-            merge_with_default,
-            kwargs.get('requestor', {}))
+            merge_with_default, kwargs.get("requestor", {})
+        )
 
         event = {
-            'operation': operation,
-            'parameters': {
-                'requestor': requestor,
-                'request': {
-                    'body': body,
-                    'path': path,
-                    'querystring': querystring,
-                    'header': header
+            "operation": operation,
+            "parameters": {
+                "requestor": requestor,
+                "request": {
+                    "body": body,
+                    "path": path,
+                    "querystring": querystring,
+                    "header": header,
                 },
-                'gateway': gateway
-            }
+                "gateway": gateway,
+            },
         }
 
         return copy.deepcopy(event)
@@ -256,8 +250,8 @@ class LambdaRequestGenerator(object):
 
     def generate_request(self, **kwargs):
         request = format_event(
-            event=self.event.generate(**kwargs),
-            context=self.context)
+            event=self.event.generate(**kwargs), context=self.context
+        )
         return request
 
 

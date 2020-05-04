@@ -1,30 +1,26 @@
-from cProfile import Profile
-try:
-    from cStringIO import StringIO
-except ImportError:
-    # StringIO was moved in Python 3
-    from io import StringIO
-from functools import wraps
-from pstats import Stats
 import random
 import re
+from cProfile import Profile
+from functools import wraps
+from io import StringIO
+from pstats import Stats
 
 from fleece import log
 
-DEFAULT_LOGGER = log.getLogger('profiler')
+DEFAULT_LOGGER = log.getLogger("profiler")
 
 RE_SUMMARY_LINE = re.compile(
-    r'^\s+(?P<total_calls>\d+) function calls '
-    r'\((?P<primitive_calls>\d+) primitive calls\) '
-    r'in (?P<total_time>\d+\.\d+) seconds$'
+    r"^\s+(?P<total_calls>\d+) function calls "
+    r"\((?P<primitive_calls>\d+) primitive calls\) "
+    r"in (?P<total_time>\d+\.\d+) seconds$"
 )
 RE_PROFILE_LINE = re.compile(
-    r'^\s+(?P<ncalls>\d+)\s+'
-    r'(?P<tottime>\d+\.\d+)\s+'
-    r'(?P<tpercall>\d+\.\d+)\s+'
-    r'(?P<cumtime>\d+\.\d+)\s+'
-    r'(?P<cpercall>\d+\.\d+)\s+'
-    r'(?P<filename>.*):(?P<lineno>\d+)\((?P<function>.*)\)$'
+    r"^\s+(?P<ncalls>\d+)\s+"
+    r"(?P<tottime>\d+\.\d+)\s+"
+    r"(?P<tpercall>\d+\.\d+)\s+"
+    r"(?P<cumtime>\d+\.\d+)\s+"
+    r"(?P<cpercall>\d+\.\d+)\s+"
+    r"(?P<filename>.*):(?P<lineno>\d+)\((?P<function>.*)\)$"
 )
 # Percentage of calls that should be profiled
 PROFILE_SAMPLE = 0.5
@@ -32,7 +28,7 @@ PROFILE_SAMPLE = 0.5
 # be present in the profiling report. This will include bundled dependencies,
 # but not the standard library, or packages that are provided by Lambda
 # (boto*).
-DEFAULT_FILTER = ['/var/task/']
+DEFAULT_FILTER = ["/var/task/"]
 DEFAULT_LIMIT = 20
 
 
@@ -41,7 +37,7 @@ def process_profiling_data(stream, logger, event):
     extra_dict = {}
 
     raw_string = stream.getvalue()
-    lines = raw_string.split('\n')
+    lines = raw_string.split("\n")
 
     # First line contains a summary of the profiled data.
     match_summary = RE_SUMMARY_LINE.match(lines[0])
@@ -55,21 +51,23 @@ def process_profiling_data(stream, logger, event):
             profiling_data.append(match.groupdict())
 
     logger.info(
-        'Profiling completed',
+        "Profiling completed",
         lambda_event=event,
         profiling_data=profiling_data,
         **extra_dict
     )
 
 
-def profile_handler(sample=PROFILE_SAMPLE, stats_filter=None,
-                    stats_limit=DEFAULT_LIMIT, logger=DEFAULT_LOGGER):
-
+def profile_handler(
+    sample=PROFILE_SAMPLE,
+    stats_filter=None,
+    stats_limit=DEFAULT_LIMIT,
+    logger=DEFAULT_LOGGER,
+):
     def decorator(func):
-
         @wraps(func)
         def wrapper(event, context, *args, **kwargs):
-            if random.random() <= PROFILE_SAMPLE:
+            if random.random() <= PROFILE_SAMPLE:  # nosec
                 print_stats_filter = stats_filter or DEFAULT_FILTER
                 print_stats_filter.append(stats_limit)
 
@@ -82,11 +80,11 @@ def profile_handler(sample=PROFILE_SAMPLE, stats_filter=None,
 
                     stream = StringIO()
                     stats = Stats(profile, stream=stream)
-                    stats.sort_stats('cumulative')
+                    stats.sort_stats("cumulative")
                     stats.print_stats(*print_stats_filter)
                     process_profiling_data(stream, logger, event)
             else:
-                logger.info('Skipping profiling')
+                logger.info("Skipping profiling")
                 return_value = func(event, context, *args, **kwargs)
 
             return return_value

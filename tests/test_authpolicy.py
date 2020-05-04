@@ -9,8 +9,9 @@ class AuthpolicyTests(unittest.TestCase):
 
     def setUp(self):
         self.aws_account_id = "000000000000"
-        self.resource_base_path = ("arn:aws:execute-api:*:{}:myapi/"
-                                   "mystage").format(self.aws_account_id)
+        self.resource_base_path = ("arn:aws:execute-api:*:{}:myapi/" "mystage").format(
+            self.aws_account_id
+        )
 
     @staticmethod
     def generate_policy(effect, resources, condition=None):
@@ -30,94 +31,88 @@ class AuthpolicyTests(unittest.TestCase):
         }
 
         if condition:
-            policy_template["policyDocument"]["Statement"][0][
-                "Condition"] = condition
+            policy_template["policyDocument"]["Statement"][0]["Condition"] = condition
 
         return policy_template
 
     @staticmethod
     def validate_policies(policy1, policy2):
         assert json.dumps(policy1, sort_keys=True) == json.dumps(
-            policy2, sort_keys=True)
+            policy2, sort_keys=True
+        )
 
     def test_allow_all(self):
         expected_policy = self.generate_policy(
-            "Allow",
-            [self.resource_base_path + "/*/*"]
+            "Allow", [self.resource_base_path + "/*/*"]
         )
-        policy = authpolicy.AuthPolicy(self.aws_account_id, principal="foo",
-                                       rest_api_id="myapi", stage="mystage")
+        policy = authpolicy.AuthPolicy(
+            self.aws_account_id, principal="foo", rest_api_id="myapi", stage="mystage"
+        )
         policy.allow_all_methods()
         self.validate_policies(expected_policy, policy.build())
 
     def test_deny_all(self):
         expected_policy = self.generate_policy(
-            "Deny",
-            [self.resource_base_path + "/*/*"]
+            "Deny", [self.resource_base_path + "/*/*"]
         )
-        policy = authpolicy.AuthPolicy(self.aws_account_id, principal="foo",
-                                       rest_api_id="myapi", stage="mystage")
+        policy = authpolicy.AuthPolicy(
+            self.aws_account_id, principal="foo", rest_api_id="myapi", stage="mystage"
+        )
         policy.deny_all_methods()
         self.validate_policies(expected_policy, policy.build())
 
     def test_allow_method(self):
         expected_policy = self.generate_policy(
-            "Allow",
-            [self.resource_base_path + "/GET/test/path"],
+            "Allow", [self.resource_base_path + "/GET/test/path"],
         )
-        policy = authpolicy.AuthPolicy(self.aws_account_id, principal="foo",
-                                       rest_api_id="myapi", stage="mystage")
+        policy = authpolicy.AuthPolicy(
+            self.aws_account_id, principal="foo", rest_api_id="myapi", stage="mystage"
+        )
         policy.allow_method("GET", "/test/path")
         self.validate_policies(expected_policy, policy.build())
 
     def test_allow_method_with_conditions(self):
         condition = {"DateLessThan": {"aws:CurrentTime": "foo"}}
         expected_policy = self.generate_policy(
-            "Allow",
-            [self.resource_base_path + "/GET/test/path"],
-            condition=condition,
+            "Allow", [self.resource_base_path + "/GET/test/path"], condition=condition,
         )
         # NOTE(ryandub): I think there is a bug with conditions in the
         # upstream source this is based on that appends an extra statement.
         # Need to investigate this more and fix if necessary.
-        expected_policy["policyDocument"]["Statement"].append({
-            "Action": "execute-api:Invoke",
-            "Effect": "Allow",
-            "Resource": [],
-        })
+        expected_policy["policyDocument"]["Statement"].append(
+            {"Action": "execute-api:Invoke", "Effect": "Allow", "Resource": []}
+        )
 
-        policy = authpolicy.AuthPolicy(self.aws_account_id, principal="foo",
-                                       rest_api_id="myapi", stage="mystage")
+        policy = authpolicy.AuthPolicy(
+            self.aws_account_id, principal="foo", rest_api_id="myapi", stage="mystage"
+        )
         policy.allow_method_with_conditions("GET", "/test/path", condition)
         self.validate_policies(expected_policy, policy.build())
 
     def test_deny_method(self):
         expected_policy = self.generate_policy(
-            "Deny",
-            [self.resource_base_path + "/GET/test/path"]
+            "Deny", [self.resource_base_path + "/GET/test/path"]
         )
-        policy = authpolicy.AuthPolicy(self.aws_account_id, principal="foo",
-                                       rest_api_id="myapi", stage="mystage")
+        policy = authpolicy.AuthPolicy(
+            self.aws_account_id, principal="foo", rest_api_id="myapi", stage="mystage"
+        )
         policy.deny_method("GET", "/test/path")
         self.validate_policies(expected_policy, policy.build())
 
     def test_deny_method_with_conditions(self):
         condition = {"DateLessThan": {"aws:CurrentTime": "foo"}}
         expected_policy = self.generate_policy(
-            "Deny",
-            [self.resource_base_path + "/GET/test/path"],
-            condition=condition,
+            "Deny", [self.resource_base_path + "/GET/test/path"], condition=condition,
         )
         # NOTE(ryandub): I think there is a bug with conditions in the
         # upstream source this is based on that appends an extra statement.
         # Need to investigate this more and fix if necessary.
-        expected_policy["policyDocument"]["Statement"].append({
-            "Action": "execute-api:Invoke",
-            "Effect": "Deny",
-            "Resource": [],
-        })
+        expected_policy["policyDocument"]["Statement"].append(
+            {"Action": "execute-api:Invoke", "Effect": "Deny", "Resource": []}
+        )
 
-        policy = authpolicy.AuthPolicy(self.aws_account_id, principal="foo",
-                                       rest_api_id="myapi", stage="mystage")
+        policy = authpolicy.AuthPolicy(
+            self.aws_account_id, principal="foo", rest_api_id="myapi", stage="mystage"
+        )
         policy.deny_method_with_conditions("GET", "/test/path", condition)
         self.validate_policies(expected_policy, policy.build())

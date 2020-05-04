@@ -1,9 +1,0 @@
-boto3>=1.0.0
-connexion==1.1.9
-Flask==1.1.1
-requests==2.20.0
-ruamel.yaml==0.15.34
-six==1.11.0
-structlog==16.0.0
-Werkzeug==0.15.3
-wrapt==1.10.10

@@ -1,0 +1,5 @@
+[flake8]
+statistics = True
+jobs = auto
+count = True
+ignore = E203, E266, E501, W503, D100 ,D101, D102

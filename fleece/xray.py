@@ -12,7 +12,6 @@ explicitly allow this behavior by calling `monkey_patch_botocore_for_xray`
 and/or `monkey_patch_requests_for_xray`. The best place to do this would be the
 main handler module where the Lambda entry point is defined.
 """
-from collections import namedtuple
 import json
 import os
 import socket
@@ -20,21 +19,22 @@ import string
 import threading
 import time
 import uuid
+from collections import namedtuple
 
-from botocore.exceptions import ClientError
 import wrapt
+from botocore.exceptions import ClientError
 
 from fleece import log
 
-LOGGER = log.get_logger('fleece.xray')
+LOGGER = log.get_logger("fleece.xray")
 
-XRAY_DAEMON_HEADER = {'format': 'json', 'version': 1}
+XRAY_DAEMON_HEADER = {"format": "json", "version": 1}
 
-XRayDaemon = namedtuple('XRayDaemon', ['ip_address', 'port'])
-XRayTraceID = namedtuple('XRayTraceID', ['trace_id', 'parent_id', 'sampled'])
+XRayDaemon = namedtuple("XRayDaemon", ["ip_address", "port"])
+XRayTraceID = namedtuple("XRayTraceID", ["trace_id", "parent_id", "sampled"])
 
-ERROR_HANDLING_GENERIC = 'generic'
-ERROR_HANDLING_BOTOCORE = 'botocore'
+ERROR_HANDLING_GENERIC = "generic"
+ERROR_HANDLING_BOTOCORE = "botocore"
 
 # Thread-local storage for parent IDs
 threadlocal = threading.local()
@@ -74,23 +74,23 @@ def get_trace_id():
     instance with default values, which means that tracing will be skipped
     due to `sampled` being set to `False`.
     """
-    raw_trace_id = os.environ.get('_X_AMZN_TRACE_ID', '')
-    trace_id_parts = raw_trace_id.split(';')
+    raw_trace_id = os.environ.get("_X_AMZN_TRACE_ID", "")
+    trace_id_parts = raw_trace_id.split(";")
     trace_kwargs = {
-        'trace_id': None,
-        'parent_id': None,
-        'sampled': False,
+        "trace_id": None,
+        "parent_id": None,
+        "sampled": False,
     }
-    if trace_id_parts[0] != '':
+    if trace_id_parts[0] != "":
         # This means the trace ID environment variable is not empty
         for part in trace_id_parts:
-            name, value = part.split('=')
-            if name == 'Root':
-                trace_kwargs['trace_id'] = value
-            elif name == 'Parent':
-                trace_kwargs['parent_id'] = value
-            elif name == 'Sampled':
-                trace_kwargs['sampled'] = bool(int(value))
+            name, value = part.split("=")
+            if name == "Root":
+                trace_kwargs["trace_id"] = value
+            elif name == "Parent":
+                trace_kwargs["parent_id"] = value
+            elif name == "Sampled":
+                trace_kwargs["sampled"] = bool(int(value))
 
     return XRayTraceID(**trace_kwargs)
 
@@ -101,11 +101,11 @@ def get_xray_daemon():
     If the environment variable is not set, raise an exception to signal that
     we're unable to send data to X-Ray.
     """
-    env_value = os.environ.get('AWS_XRAY_DAEMON_ADDRESS')
+    env_value = os.environ.get("AWS_XRAY_DAEMON_ADDRESS")
     if env_value is None:
         raise XRayDaemonNotFoundError()
 
-    xray_ip, xray_port = env_value.split(':')
+    xray_ip, xray_port = env_value.split(":")
     return XRayDaemon(ip_address=xray_ip, port=int(xray_port))
 
 
@@ -113,9 +113,9 @@ def send_data_on_udp(ip_address, port, data):
     """Helper function to send a string over UDP to a specific IP/port."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        sock.sendto(data.encode('utf-8'), (ip_address, port))
-    except:
-        LOGGER.exception('Failed to send trace to X-Ray Daemon')
+        sock.sendto(data.encode("utf-8"), (ip_address, port))
+    except:  # noqa
+        LOGGER.exception("Failed to send trace to X-Ray Daemon")
     finally:
         sock.close()
 
@@ -125,28 +125,30 @@ def send_segment_document_to_xray_daemon(segment_document):
     try:
         xray_daemon = get_xray_daemon()
     except XRayDaemonNotFoundError:
-        LOGGER.error('X-Ray Daemon not running, skipping send')
+        LOGGER.error("X-Ray Daemon not running, skipping send")
         return
 
-    message = u'{header}\n{document}'.format(
+    message = u"{header}\n{document}".format(
         header=json.dumps(XRAY_DAEMON_HEADER),
         document=json.dumps(
-            segment_document,
-            ensure_ascii=False,
-            cls=StringJSONEncoder,
+            segment_document, ensure_ascii=False, cls=StringJSONEncoder,
         ),
     )
 
     send_data_on_udp(
-        ip_address=xray_daemon.ip_address,
-        port=xray_daemon.port,
-        data=message,
+        ip_address=xray_daemon.ip_address, port=xray_daemon.port, data=message,
     )
 
 
-def send_subsegment_to_xray_daemon(subsegment_id, parent_id,
-                                   start_time, end_time=None, name=None,
-                                   namespace='remote', extra_data=None):
+def send_subsegment_to_xray_daemon(
+    subsegment_id,
+    parent_id,
+    start_time,
+    end_time=None,
+    name=None,
+    namespace="remote",
+    extra_data=None,
+):
     """High level function to send data to the X-Ray Daemon.
 
     If `end_time` is set to `None` (which is the default), a partial subsegment
@@ -162,32 +164,29 @@ def send_subsegment_to_xray_daemon(subsegment_id, parent_id,
     extra_data = extra_data or {}
     trace_id = get_trace_id()
     segment_document = {
-        'type': 'subsegment',
-        'id': subsegment_id,
-        'trace_id': trace_id.trace_id,
-        'parent_id': parent_id,
-        'start_time': start_time,
+        "type": "subsegment",
+        "id": subsegment_id,
+        "trace_id": trace_id.trace_id,
+        "parent_id": parent_id,
+        "start_time": start_time,
     }
     if end_time is None:
-        segment_document['in_progress'] = True
+        segment_document["in_progress"] = True
     else:
-        segment_document.update({
-            'end_time': end_time,
-            'name': name,
-            'namespace': namespace,
-        })
+        segment_document.update(
+            {"end_time": end_time, "name": name, "namespace": namespace}
+        )
         segment_document.update(extra_data)
 
     LOGGER.debug(
-        'Prepared segment document for X-Ray Daemon',
-        segment_document=segment_document,
+        "Prepared segment document for X-Ray Daemon", segment_document=segment_document,
     )
     send_segment_document_to_xray_daemon(segment_document)
 
 
 def get_parent_id():
     """Retrieve the parent ID from the thread-local storage."""
-    return getattr(threadlocal, 'parent_id', None)
+    return getattr(threadlocal, "parent_id", None)
 
 
 def get_parent_id_from_trace_id():
@@ -206,9 +205,16 @@ def get_function_name(wrapped, instance, args, kwargs):
     return wrapped.__name__
 
 
-def generic_xray_wrapper(wrapped, instance, args, kwargs, name, namespace,
-                         metadata_extractor,
-                         error_handling_type=ERROR_HANDLING_GENERIC):
+def generic_xray_wrapper(
+    wrapped,
+    instance,
+    args,
+    kwargs,
+    name,
+    namespace,
+    metadata_extractor,
+    error_handling_type=ERROR_HANDLING_GENERIC,
+):
     """Wrapper function around existing calls to send traces to X-Ray.
 
     `wrapped` is the original function, `instance` is the original instance,
@@ -236,7 +242,7 @@ def generic_xray_wrapper(wrapped, instance, args, kwargs, name, namespace,
     if not get_trace_id().sampled:
         # Request not sampled by X-Ray, let's get to the call
         # immediately.
-        LOGGER.debug('Request not sampled by X-Ray, skipping trace')
+        LOGGER.debug("Request not sampled by X-Ray, skipping trace")
         return wrapped(*args, **kwargs)
 
     start_time = time.time()
@@ -256,22 +262,17 @@ def generic_xray_wrapper(wrapped, instance, args, kwargs, name, namespace,
     # upfront (otherwise we'll lose data, since downstream subsegments will
     # have invalid parent IDs).
     send_subsegment_to_xray_daemon(
-        subsegment_id=subsegment_id,
-        parent_id=parent_id,
-        start_time=start_time,
+        subsegment_id=subsegment_id, parent_id=parent_id, start_time=start_time,
     )
     try:
         return_value = wrapped(*args, **kwargs)
     except Exception as exc:
         error = True
         cause = {
-            'exceptions': [
+            "exceptions": [
                 {
-                    'message': str(exc),
-                    'type': '{}.{}'.format(
-                        type(exc).__module__,
-                        type(exc).__name__,
-                    ),
+                    "message": str(exc),
+                    "type": "{}.{}".format(type(exc).__module__, type(exc).__name__,),
                 }
             ]
         }
@@ -292,9 +293,9 @@ def generic_xray_wrapper(wrapped, instance, args, kwargs, name, namespace,
             kwargs=kwargs,
             return_value=return_value,
         )
-        extra_data['error'] = error
+        extra_data["error"] = error
         if error:
-            extra_data['cause'] = cause
+            extra_data["cause"] = cause
         # We allow the name to be determined dynamically when a function is
         # passed in as the `name` argument.
         if callable(name):
@@ -323,15 +324,10 @@ def noop_function_metadata(wrapped, instance, args, kwargs, return_value):
 def extract_function_metadata(wrapped, instance, args, kwargs, return_value):
     """Stash the `args` and `kwargs` into the metadata of the subsegment."""
     LOGGER.debug(
-        'Extracting function call metadata',
-        args=args,
-        kwargs=kwargs,
+        "Extracting function call metadata", args=args, kwargs=kwargs,
     )
     return {
-        'metadata': {
-            'args': args,
-            'kwargs': kwargs,
-        },
+        "metadata": {"args": args, "kwargs": kwargs},
     }
 
 
@@ -341,17 +337,19 @@ def trace_xray_subsegment(skip_args=False):
     If `skip_args` is True, the arguments of the function won't be sent to
     X-Ray.
     """
+
     @wrapt.decorator
     def wrapper(wrapped, instance, args, kwargs):
         metadata_extractor = (
-            noop_function_metadata
-            if skip_args
-            else extract_function_metadata
+            noop_function_metadata if skip_args else extract_function_metadata
         )
         return generic_xray_wrapper(
-            wrapped, instance, args, kwargs,
+            wrapped,
+            instance,
+            args,
+            kwargs,
             name=get_function_name,
-            namespace='local',
+            namespace="local",
             metadata_extractor=metadata_extractor,
         )
 
@@ -360,9 +358,9 @@ def trace_xray_subsegment(skip_args=False):
 
 def get_service_name(wrapped, instance, args, kwargs):
     """Return the AWS service name the client is communicating with."""
-    if 'serviceAbbreviation' not in instance._service_model.metadata:
-        return instance._service_model.metadata['endpointPrefix']
-    return instance._service_model.metadata['serviceAbbreviation']
+    if "serviceAbbreviation" not in instance._service_model.metadata:
+        return instance._service_model.metadata["endpointPrefix"]
+    return instance._service_model.metadata["serviceAbbreviation"]
 
 
 def extract_aws_metadata(wrapped, instance, args, kwargs, return_value):
@@ -373,12 +371,10 @@ def extract_aws_metadata(wrapped, instance, args, kwargs, return_value):
     """
     response = return_value
     LOGGER.debug(
-        'Extracting AWS metadata',
-        args=args,
-        kwargs=kwargs,
+        "Extracting AWS metadata", args=args, kwargs=kwargs,
     )
-    if 'operation_name' in kwargs:
-        operation_name = kwargs['operation_name']
+    if "operation_name" in kwargs:
+        operation_name = kwargs["operation_name"]
     else:
         operation_name = args[0]
 
@@ -389,27 +385,20 @@ def extract_aws_metadata(wrapped, instance, args, kwargs, return_value):
 
     region_name = instance._client_config.region_name
 
-    response_metadata = response.get('ResponseMetadata')
+    response_metadata = response.get("ResponseMetadata")
 
-    metadata = {
-        'aws': {
-            'operation': operation_name,
-            'region': region_name,
-        }
-    }
+    metadata = {"aws": {"operation": operation_name, "region": region_name}}
 
-    if 'TableName' in kwargs:
-        metadata['aws']['table_name'] = kwargs['TableName']
-    if 'QueueUrl' in kwargs:
-        metadata['aws']['queue_url'] = kwargs['QueueUrl']
+    if "TableName" in kwargs:
+        metadata["aws"]["table_name"] = kwargs["TableName"]
+    if "QueueUrl" in kwargs:
+        metadata["aws"]["queue_url"] = kwargs["QueueUrl"]
 
     if response_metadata is not None:
-        metadata['http'] = {
-            'response': {
-                'status': response_metadata['HTTPStatusCode'],
-            },
+        metadata["http"] = {
+            "response": {"status": response_metadata["HTTPStatusCode"]},
         }
-        metadata['aws']['request_id'] = response_metadata['RequestId']
+        metadata["aws"]["request_id"] = response_metadata["RequestId"]
 
     return metadata
 
@@ -417,9 +406,12 @@ def extract_aws_metadata(wrapped, instance, args, kwargs, return_value):
 def xray_botocore_api_call(wrapped, instance, args, kwargs):
     """Wrapper around botocore's base client API call method."""
     return generic_xray_wrapper(
-        wrapped, instance, args, kwargs,
+        wrapped,
+        instance,
+        args,
+        kwargs,
         name=get_service_name,
-        namespace='aws',
+        namespace="aws",
         metadata_extractor=extract_aws_metadata,
         error_handling_type=ERROR_HANDLING_BOTOCORE,
     )
@@ -428,9 +420,7 @@ def xray_botocore_api_call(wrapped, instance, args, kwargs):
 def monkey_patch_botocore_for_xray():
     """Explicit way to monkey-patch botocore to trace AWS API calls."""
     wrapt.wrap_function_wrapper(
-        'botocore.client',
-        'BaseClient._make_api_call',
-        xray_botocore_api_call,
+        "botocore.client", "BaseClient._make_api_call", xray_botocore_api_call,
     )
 
 
@@ -442,26 +432,19 @@ def extract_http_metadata(wrapped, instance, args, kwargs, return_value):
     """
     response = return_value
     LOGGER.debug(
-        'Extracting HTTP metadata',
-        args=args,
-        kwargs=kwargs,
+        "Extracting HTTP metadata", args=args, kwargs=kwargs,
     )
-    if 'request' in kwargs:
-        request = kwargs['request']
+    if "request" in kwargs:
+        request = kwargs["request"]
     else:
         request = args[0]
 
     metadata = {
-        'http': {
-            'request': {
-                'method': request.method.upper(),
-                'url': request.url,
-            },
-        },
+        "http": {"request": {"method": request.method.upper(), "url": request.url}},
     }
     if response is not None:
-        metadata['http']['response'] = {
-            'status': response.status_code,
+        metadata["http"]["response"] = {
+            "status": response.status_code,
         }
 
     return metadata
@@ -470,9 +453,12 @@ def extract_http_metadata(wrapped, instance, args, kwargs, return_value):
 def xray_requests_send(wrapped, instance, args, kwargs):
     """Wrapper around the requests library's low-level send method."""
     return generic_xray_wrapper(
-        wrapped, instance, args, kwargs,
-        name='requests',
-        namespace='remote',
+        wrapped,
+        instance,
+        args,
+        kwargs,
+        name="requests",
+        namespace="remote",
         metadata_extractor=extract_http_metadata,
     )
 
@@ -480,16 +466,14 @@ def xray_requests_send(wrapped, instance, args, kwargs):
 def monkey_patch_requests_for_xray():
     """Explicit way to monkey-patch requests to trace HTTP requests."""
     wrapt.wrap_function_wrapper(
-        'requests.sessions',
-        'Session.send',
-        xray_requests_send,
+        "requests.sessions", "Session.send", xray_requests_send,
     )
 
 
 def to_safe_annotation_key(key):
     """Xray doesn't like keys that have punctuations
     and likes to silently drop things."""
-    safe_key = key.translate(str.maketrans('', '', string.punctuation))
+    safe_key = key.translate(str.maketrans("", "", string.punctuation))
     return safe_key
 
 

@@ -19,13 +19,13 @@ def authentication_test(token=None, userinfo=None):
 
 
 class TestRaxAuth(unittest.TestCase):
-
-    @mock.patch('fleece.raxauth.validate', side_effect=mock_validation)
+    @mock.patch("fleece.raxauth.validate", side_effect=mock_validation)
     def test_raxauth(self, validation_function):
         result = authentication_test(token=utils.TEST_TOKEN, userinfo=None)
-        self.assertEqual(result, 'AUTHENTICATED')
+        self.assertEqual(result, "AUTHENTICATED")
 
-    @mock.patch('fleece.raxauth.validate', side_effect=mock_validation)
+    @mock.patch("fleece.raxauth.validate", side_effect=mock_validation)
     def test_unauthorized_empty(self, validation_function):
-        self.assertRaisesRegexp(HTTPError, '401: Unauthorized',
-                                authentication_test, token='bogus')
+        self.assertRaisesRegex(
+            HTTPError, "401: Unauthorized", authentication_test, token="bogus"
+        )

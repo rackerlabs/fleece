@@ -1,9 +1,15 @@
 from __future__ import absolute_import
 
 import boto3 as real_boto3
-from boto3 import docs, exceptions, logging, resources, session  # noqa: F401
-from boto3 import set_stream_logger, setup_default_session  # noqa: F401
 from botocore.client import Config
+
+from boto3 import docs  # noqa: F401; noqa: F401
+from boto3 import exceptions  # noqa: F401; noqa: F401
+from boto3 import logging  # noqa: F401; noqa: F401
+from boto3 import resources  # noqa: F401; noqa: F401
+from boto3 import session  # noqa: F401; noqa: F401
+from boto3 import set_stream_logger  # noqa: F401; noqa: F401
+from boto3 import setup_default_session  # noqa: F401; noqa: F401
 
 DEFAULT_TIMEOUT = None
 DEFAULT_CONNECT_TIMEOUT = None
@@ -47,13 +53,11 @@ def client(*args, **kwargs):
     explicitly for a client by passing the `timeout`, `connect_timeout` or
     `read_timeout` arguments.
     """
-    timeout = kwargs.pop('timeout', DEFAULT_TIMEOUT)
-    connect_timeout = kwargs.pop('connect_timeout',
-                                 DEFAULT_CONNECT_TIMEOUT or timeout)
-    read_timeout = kwargs.pop('read_timeout', DEFAULT_READ_TIMEOUT or timeout)
+    timeout = kwargs.pop("timeout", DEFAULT_TIMEOUT)
+    connect_timeout = kwargs.pop("connect_timeout", DEFAULT_CONNECT_TIMEOUT or timeout)
+    read_timeout = kwargs.pop("read_timeout", DEFAULT_READ_TIMEOUT or timeout)
 
-    config = Config(connect_timeout=connect_timeout,
-                    read_timeout=read_timeout)
+    config = Config(connect_timeout=connect_timeout, read_timeout=read_timeout)
     return real_boto3.client(*args, config=config, **kwargs)
 
 
@@ -65,11 +69,9 @@ def resource(*args, **kwargs):
     explicitly for a client by passing the `timeout`, `connect_timeout` or
     `read_timeout` arguments.
     """
-    timeout = kwargs.pop('timeout', DEFAULT_TIMEOUT)
-    connect_timeout = kwargs.pop('connect_timeout',
-                                 DEFAULT_CONNECT_TIMEOUT or timeout)
-    read_timeout = kwargs.pop('read_timeout', DEFAULT_READ_TIMEOUT or timeout)
+    timeout = kwargs.pop("timeout", DEFAULT_TIMEOUT)
+    connect_timeout = kwargs.pop("connect_timeout", DEFAULT_CONNECT_TIMEOUT or timeout)
+    read_timeout = kwargs.pop("read_timeout", DEFAULT_READ_TIMEOUT or timeout)
 
-    config = Config(connect_timeout=connect_timeout,
-                    read_timeout=read_timeout)
+    config = Config(connect_timeout=connect_timeout, read_timeout=read_timeout)
     return real_boto3.resource(*args, config=config, **kwargs)

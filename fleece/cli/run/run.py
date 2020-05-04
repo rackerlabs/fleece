@@ -10,64 +10,101 @@ import yaml
 
 from fleece import utils
 
-
-RS_AUTH_ERROR = 'Rackspace authentication failed:\nStatus: {}\nResponse: {}'
-ACCT_NOT_FOUND_ERROR = 'No AWS account for `{}` found in config'
-NO_USER_OR_APIKEY_ERROR = 'You must provide a Rackspace username and apikey'
+RS_AUTH_ERROR = "Rackspace authentication failed:\nStatus: {}\nResponse: {}"
+ACCT_NOT_FOUND_ERROR = "No AWS account for `{}` found in config"
+NO_USER_OR_APIKEY_ERROR = "You must provide a Rackspace username and apikey"
 NO_STAGE_DATA = 'No stage named "{}" found in config'
 NO_ENV_IN_STAGE = 'No default environment defined for stage "{}"'
-ENV_AND_ACCT_ERROR = 'Use only ONE of `--environment` or `--account`'
-NO_ACCT_OR_ENV_ERROR = 'You must provide either `--environment` or `--account`'
-ENV_AND_ROLE_ERROR = ('`--role` cannot be used with `--environment` '
-                      '- use `role: <rolename>` in the config file instead')
-FAWS_API_URL = ('https://accounts.api.manage.rackspace.com/v0/awsAccounts/{0}'
-                '/credentials')
-RS_IDENTITY_URL = 'https://identity.api.rackspacecloud.com/v2.0/tokens'
-FAWS_API_ERROR = ('Could not fetch AWS Account credentials.\nStatus: {}\n'
-                  'Reason: {}')
+ENV_AND_ACCT_ERROR = "Use only ONE of `--environment` or `--account`"
+NO_ACCT_OR_ENV_ERROR = "You must provide either `--environment` or `--account`"
+ENV_AND_ROLE_ERROR = (
+    "`--role` cannot be used with `--environment` "
+    "- use `role: <rolename>` in the config file instead"
+)
+FAWS_API_URL = (
+    "https://accounts.api.manage.rackspace.com/v0/awsAccounts/{0}" "/credentials"
+)
+RS_IDENTITY_URL = "https://identity.api.rackspacecloud.com/v2.0/tokens"
+FAWS_API_ERROR = "Could not fetch AWS Account credentials.\nStatus: {}\n" "Reason: {}"
 
 
 def parse_args(args):
 
     for arg in args:
         try:
-            cutoff = args.index('--')
+            cutoff = args.index("--")
             ap_args = args[:cutoff]
-            run_args = args[cutoff + 1:]
+            run_args = args[cutoff + 1 :]
         except ValueError:
             ap_args = args
             run_args = None
 
     parser = argparse.ArgumentParser(
-        prog='fleece run',
-        description=('Run command in environment with AWS credentials from '
-                     'Rackspace FAWS API')
+        prog="fleece run",
+        description=(
+            "Run command in environment with AWS credentials from " "Rackspace FAWS API"
+        ),
     )
-    parser.add_argument('--username', '-u', type=str,
-                        help=('Rackspace username. Can also be set via '
-                              'RS_USERNAME environment variable'))
-    parser.add_argument('--apikey', '-k', type=str,
-                        help=('Rackspace API key. Can also be set via '
-                              'RS_API_KEY environment variable'))
-    parser.add_argument('--config', '-c', type=str,
-                        default='./environments.yml',
-                        help=('Path to YAML config file with defined accounts '
-                              'and aliases. Default is ./environments.yml'))
-    parser.add_argument('--account', '-a', type=str,
-                        help=('AWS account number. Cannot be used with '
-                              '`--environment`'))
-    parser.add_argument('--environment', '-e', type=str,
-                        help=('Environment alias to AWS account defined in '
-                              'config file. Cannot be used with `--account`'))
-    parser.add_argument('--stage', '-s', type=str,
-                        help=('Stage name defined in config file which links '
-                              'to an environment. Cannot be used with '
-                              '`--account`'))
-    parser.add_argument('--role', '-r', type=str,
-                        help=('Role name to assume after obtaining credentials'
-                              ' from FAWS API'))
+    parser.add_argument(
+        "--username",
+        "-u",
+        type=str,
+        help=(
+            "Rackspace username. Can also be set via "
+            "RS_USERNAME environment variable"
+        ),
+    )
+    parser.add_argument(
+        "--apikey",
+        "-k",
+        type=str,
+        help=(
+            "Rackspace API key. Can also be set via " "RS_API_KEY environment variable"
+        ),
+    )
+    parser.add_argument(
+        "--config",
+        "-c",
+        type=str,
+        default="./environments.yml",
+        help=(
+            "Path to YAML config file with defined accounts "
+            "and aliases. Default is ./environments.yml"
+        ),
+    )
+    parser.add_argument(
+        "--account",
+        "-a",
+        type=str,
+        help=("AWS account number. Cannot be used with " "`--environment`"),
+    )
+    parser.add_argument(
+        "--environment",
+        "-e",
+        type=str,
+        help=(
+            "Environment alias to AWS account defined in "
+            "config file. Cannot be used with `--account`"
+        ),
+    )
+    parser.add_argument(
+        "--stage",
+        "-s",
+        type=str,
+        help=(
+            "Stage name defined in config file which links "
+            "to an environment. Cannot be used with "
+            "`--account`"
+        ),
+    )
+    parser.add_argument(
+        "--role",
+        "-r",
+        type=str,
+        help=("Role name to assume after obtaining credentials" " from FAWS API"),
+    )
     if run_args is None:
-        parser.add_argument('command', type=str, help=('Command to execute'))
+        parser.add_argument("command", type=str, help=("Command to execute"))
 
     args_namespace = parser.parse_args(ap_args)
 
@@ -80,19 +117,19 @@ def parse_args(args):
 def assume_role(credentials, account, role):
     """Use FAWS provided credentials to assume defined role."""
     sts = boto3.client(
-        'sts',
-        aws_access_key_id=credentials['accessKeyId'],
-        aws_secret_access_key=credentials['secretAccessKey'],
-        aws_session_token=credentials['sessionToken'],
+        "sts",
+        aws_access_key_id=credentials["accessKeyId"],
+        aws_secret_access_key=credentials["secretAccessKey"],
+        aws_session_token=credentials["sessionToken"],
     )
     resp = sts.assume_role(
-        RoleArn='arn:aws:sts::{}:role/{}'.format(account, role),
-        RoleSessionName='fleece_assumed_role'
+        RoleArn="arn:aws:sts::{}:role/{}".format(account, role),
+        RoleSessionName="fleece_assumed_role",
     )
     return {
-        'accessKeyId': resp['Credentials']['AccessKeyId'],
-        'secretAccessKey': resp['Credentials']['SecretAccessKey'],
-        'sessionToken': resp['Credentials']['SessionToken'],
+        "accessKeyId": resp["Credentials"]["AccessKeyId"],
+        "secretAccessKey": resp["Credentials"]["SecretAccessKey"],
+        "sessionToken": resp["Credentials"]["SessionToken"],
     }
 
 
@@ -100,19 +137,19 @@ def get_stage_data(stage, data):
     if stage in data:
         return data[stage]
     for s in data:
-        if s.startswith('/'):
-            if utils.fullmatch(s.split('/')[1], stage):
+        if s.startswith("/"):
+            if utils.fullmatch(s.split("/")[1], stage):
                 return data[s]
     return None
 
 
 def get_environment(config, stage):
     """Find default environment name in stage."""
-    stage_data = get_stage_data(stage, config.get('stages', {}))
+    stage_data = get_stage_data(stage, config.get("stages", {}))
     if not stage_data:
         sys.exit(NO_STAGE_DATA.format(stage))
     try:
-        return stage_data['environment']
+        return stage_data["environment"]
     except KeyError:
         sys.exit(NO_ENV_IN_STAGE.format(stage))
 
@@ -122,14 +159,20 @@ def get_account(config, environment, stage=None):
     if environment is None and stage:
         environment = get_environment(config, stage)
     account = None
-    for env in config.get('environments', []):
-        if env.get('name') == environment:
-            account = env.get('account')
-            role = env.get('role')
-            username = os.environ.get(env.get('rs_username_var')) \
-                if env.get('rs_username_var') else None
-            apikey = os.environ.get(env.get('rs_apikey_var')) \
-                if env.get('rs_apikey_var') else None
+    for env in config.get("environments", []):
+        if env.get("name") == environment:
+            account = env.get("account")
+            role = env.get("role")
+            username = (
+                os.environ.get(env.get("rs_username_var"))
+                if env.get("rs_username_var")
+                else None
+            )
+            apikey = (
+                os.environ.get(env.get("rs_apikey_var"))
+                if env.get("rs_apikey_var")
+                else None
+            )
     if not account:
         sys.exit(ACCT_NOT_FOUND_ERROR.format(environment))
     return account, role, username, apikey
@@ -140,17 +183,18 @@ def get_aws_creds(account, tenant, token):
 
     Returns a time bound set of AWS credentials.
     """
-    url = (FAWS_API_URL.format(account))
+    url = FAWS_API_URL.format(account)
     headers = {
-        'X-Auth-Token': token,
-        'X-Tenant-Id': tenant,
+        "X-Auth-Token": token,
+        "X-Tenant-Id": tenant,
     }
-    response = requests.post(url, headers=headers,
-                             json={'credential': {'duration': '3600'}})
+    response = requests.post(
+        url, headers=headers, json={"credential": {"duration": "3600"}}
+    )
 
     if not response.ok:
         sys.exit(FAWS_API_ERROR.format(response.status_code, response.text))
-    return response.json()['credential']
+    return response.json()["credential"]
 
 
 def get_config(config_file):
@@ -158,7 +202,7 @@ def get_config(config_file):
     config_path = os.path.abspath(config_file)
 
     try:
-        with open(config_path, 'r') as data:
+        with open(config_path, "r") as data:
             config = yaml.safe_load(data)
     except IOError as exc:
         sys.exit(str(exc))
@@ -174,10 +218,7 @@ def get_rackspace_token(username, apikey):
     """
     auth_params = {
         "auth": {
-            "RAX-KSKEY:apiKeyCredentials": {
-                "username": username,
-                "apiKey": apikey,
-            }
+            "RAX-KSKEY:apiKeyCredentials": {"username": username, "apiKey": apikey}
         }
     }
     response = requests.post(RS_IDENTITY_URL, json=auth_params)
@@ -185,8 +226,10 @@ def get_rackspace_token(username, apikey):
         sys.exit(RS_AUTH_ERROR.format(response.status_code, response.text))
 
     identity = response.json()
-    return (identity['access']['token']['id'],
-            identity['access']['token']['tenant']['id'])
+    return (
+        identity["access"]["token"]["id"],
+        identity["access"]["token"]["tenant"]["id"],
+    )
 
 
 def validate_args(args):
@@ -205,13 +248,14 @@ def run(args):
     if args.environment or args.stage:
         config = get_config(args.config)
         account, role, cfg_username, cfg_apikey = get_account(
-            config, args.environment, args.stage)
+            config, args.environment, args.stage
+        )
     else:
         cfg_username, cfg_apikey = None, None
         account = args.account
 
-    username = args.username or cfg_username or os.environ.get('RS_USERNAME')
-    apikey = args.apikey or cfg_apikey or os.environ.get('RS_API_KEY')
+    username = args.username or cfg_username or os.environ.get("RS_USERNAME")
+    apikey = args.apikey or cfg_apikey or os.environ.get("RS_API_KEY")
     if not all([username, apikey]):
         sys.exit(NO_USER_OR_APIKEY_ERROR)
     token, tenant = get_rackspace_token(username, apikey)
@@ -223,17 +267,16 @@ def run(args):
         aws_credentials = faws_credentials
 
     env = os.environ.copy()
-    env['AWS_ACCESS_KEY_ID'] = aws_credentials['accessKeyId']
-    env['AWS_SECRET_ACCESS_KEY'] = aws_credentials['secretAccessKey']
-    env['AWS_SESSION_TOKEN'] = aws_credentials['sessionToken']
+    env["AWS_ACCESS_KEY_ID"] = aws_credentials["accessKeyId"]
+    env["AWS_SECRET_ACCESS_KEY"] = aws_credentials["secretAccessKey"]
+    env["AWS_SESSION_TOKEN"] = aws_credentials["sessionToken"]
 
     if isinstance(args.command, list):
-        command = ' '.join("'{}'".format(c.replace("'", "\\'"))
-                           for c in args.command)
+        command = " ".join("'{}'".format(c.replace("'", "\\'")) for c in args.command)
     else:
         command = args.command
 
-    sys.exit(subprocess.call(command, shell=True, env=env))
+    sys.exit(subprocess.call(command, shell=True, env=env))  # nosec
 
 
 def main(args):

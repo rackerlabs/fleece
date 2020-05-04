@@ -1,29 +1,21 @@
 from __future__ import absolute_import
 
-try:
-    from cStringIO import cStringIO as StringIO
-except ImportError:
-    # Python 3
-    from io import StringIO
 import json
 import os.path
-try:
-    from urllib import urlencode
-except ImportError:
-    # Python 3
-    from urllib.parse import urlencode
+from io import StringIO
+from urllib.parse import urlencode
 
 import connexion
 import six
 import werkzeug.wrappers
 
-from fleece.handlers.wsgi import build_wsgi_environ_from_event
-from fleece import httperror
 import fleece.log
+from fleece import httperror
+from fleece.handlers.wsgi import build_wsgi_environ_from_event
 
 _app_cache = {}
 
-RESPONSE_CONTRACT_VIOLATION = 'Response body does not conform to specification'
+RESPONSE_CONTRACT_VIOLATION = "Response body does not conform to specification"
 
 
 class FleeceApp(connexion.App):
@@ -41,7 +33,7 @@ class FleeceApp(connexion.App):
 
             If `logger` is None, a default logger object will be created.
         """
-        logger = kwargs.pop('logger', None)
+        logger = kwargs.pop("logger", None)
         if logger is None:
             self.logger = fleece.log.get_logger(__name__)
         else:
@@ -88,8 +80,7 @@ class FleeceApp(connexion.App):
             response_dict = json.loads(response.get_data())
 
             if 400 <= response.status_code < 500:
-                if ('error' in response_dict and
-                        'message' in response_dict['error']):
+                if "error" in response_dict and "message" in response_dict["error"]:
                     # FIXME(larsbutler): If 'error' is not a collection
                     # (list/dict) and is a scalar such as an int, the check
                     # `message in response_dict['error']` will blow up and
@@ -97,37 +88,33 @@ class FleeceApp(connexion.App):
                     # much about the format of error responses given by the
                     # handler. It might be good to allow this handling to
                     # support custom structures.
-                    msg = response_dict['error']['message']
-                elif 'detail' in response_dict:
+                    msg = response_dict["error"]["message"]
+                elif "detail" in response_dict:
                     # Likely this is a generated 400 response from Connexion.
                     # Reveal the 'detail' of the message to the user.
                     # NOTE(larsbutler): If your API handler explicitly returns
                     # a 'detail' key in in the response, be aware that this
                     # will be exposed to the client.
-                    msg = response_dict['detail']
+                    msg = response_dict["detail"]
                 else:
                     # Respond with a generic client error.
-                    msg = 'Client Error'
+                    msg = "Client Error"
                 # FIXME(larsbutler): The logic above still assumes a lot about
                 # the API response. That's not great. It would be nice to make
                 # this more flexible and explicit.
                 self.logger.error(
-                    'Raising 4xx error',
-                    http_status=response.status_code,
-                    message=msg,
+                    "Raising 4xx error", http_status=response.status_code, message=msg,
                 )
                 raise httperror.HTTPError(
-                    status=response.status_code,
-                    message=msg,
+                    status=response.status_code, message=msg,
                 )
             elif 500 <= response.status_code < 600:
-                if response_dict['title'] == RESPONSE_CONTRACT_VIOLATION:
+                if response_dict["title"] == RESPONSE_CONTRACT_VIOLATION:
                     # This case is generally enountered if the API endpoint
                     # handler code does not conform to the contract dictated by
                     # the Swagger specification.
                     self.logger.error(
-                        RESPONSE_CONTRACT_VIOLATION,
-                        detail=response_dict['detail']
+                        RESPONSE_CONTRACT_VIOLATION, detail=response_dict["detail"]
                     )
                 else:
                     # This case will trigger if
@@ -135,7 +122,7 @@ class FleeceApp(connexion.App):
                     # or
                     # b) the handler code explicitly returns a 5xx error.
                     self.logger.error(
-                        'Raising 5xx error',
+                        "Raising 5xx error",
                         response=response_dict,
                         http_status=response.status_code,
                     )
@@ -143,10 +130,10 @@ class FleeceApp(connexion.App):
             else:
                 return response_dict
         except httperror.HTTPError:
-            self.logger.exception('HTTPError')
+            self.logger.exception("HTTPError")
             raise
         except Exception:
-            self.logger.exception('Unhandled exception')
+            self.logger.exception("Unhandled exception")
             raise httperror.HTTPError(status=500)
 
     def call_proxy_api(self, event):
@@ -169,26 +156,22 @@ class FleeceApp(connexion.App):
             environ = build_wsgi_environ_from_event(event)
             response = werkzeug.wrappers.Response.from_app(self, environ)
             return {
-                'statusCode': response.status_code,
-                'headers': {
+                "statusCode": response.status_code,
+                "headers": {
                     header: value for header, value in response.headers.items()
                 },
-                'body': response.get_data(as_text=True),
+                "body": response.get_data(as_text=True),
             }
         except Exception:
             # We should actually never get here, because exceptions raised
             # within the application are handled by the error handlers, and the
             # default one will return a clean 500 error during the happy path
             # above.
-            self.logger.exception('Unhandled exception')
+            self.logger.exception("Unhandled exception")
             return {
-                'statusCode': 500,
-                'headers': {},
-                'body': json.dumps({
-                    'error': {
-                        'message': 'Internal server error.',
-                    },
-                }),
+                "statusCode": 500,
+                "headers": {},
+                "body": json.dumps({"error": {"message": "Internal server error."}}),
             }
 
 
@@ -200,49 +183,53 @@ def _build_wsgi_env(event, app_name):
     :param str app_name:
         Name of the API application.
     """
-    gateway = event['parameters']['gateway']
-    request = event['parameters']['request']
-    ctx = event['rawContext']
-    headers = request['header']
-    body = six.text_type(json.dumps(request['body']))
+    gateway = event["parameters"]["gateway"]
+    request = event["parameters"]["request"]
+    ctx = event["rawContext"]
+    headers = request["header"]
+    body = six.text_type(json.dumps(request["body"]))
 
     # Render the path correctly so connexion/flask will pass the path params to
     # the handler function correctly.
     # Basically, this replaces "/foo/{param1}/bar/{param2}" with
     # "/foo/123/bar/456".
-    path = gateway['resource-path'].format(
-        **event['parameters']['request']['path']
-    )
+    path = gateway["resource-path"].format(**event["parameters"]["request"]["path"])
     environ = {
-        'PATH_INFO': path,
-        'QUERY_STRING': urlencode(request['querystring']),
-        'REMOTE_ADDR': ctx['identity']['sourceIp'],
-        'REQUEST_METHOD': ctx['httpMethod'],
-        'SCRIPT_NAME': app_name,
-        'SERVER_NAME': app_name,
-        'SERVER_PORT': headers.get('X-Forwarded-Port', '80'),
-        'SERVER_PROTOCOL': 'HTTP/1.1',
-        'wsgi.version': (1, 0),
-        'wsgi.url_scheme': headers.get('X-Forwarded-Proto', 'http'),
-        'wsgi.input': StringIO(body),
-        'wsgi.errors': StringIO(),
-        'wsgi.multiprocess': False,
-        'wsgi.multithread': False,
-        'wsgi.run_once': False,
-        'CONTENT_TYPE': headers.get('Content-Type', 'application/json'),
+        "PATH_INFO": path,
+        "QUERY_STRING": urlencode(request["querystring"]),
+        "REMOTE_ADDR": ctx["identity"]["sourceIp"],
+        "REQUEST_METHOD": ctx["httpMethod"],
+        "SCRIPT_NAME": app_name,
+        "SERVER_NAME": app_name,
+        "SERVER_PORT": headers.get("X-Forwarded-Port", "80"),
+        "SERVER_PROTOCOL": "HTTP/1.1",
+        "wsgi.version": (1, 0),
+        "wsgi.url_scheme": headers.get("X-Forwarded-Proto", "http"),
+        "wsgi.input": StringIO(body),
+        "wsgi.errors": StringIO(),
+        "wsgi.multiprocess": False,
+        "wsgi.multithread": False,
+        "wsgi.run_once": False,
+        "CONTENT_TYPE": headers.get("Content-Type", "application/json"),
     }
-    if ctx['httpMethod'] in ['POST', 'PUT', 'PATCH']:
-        environ['CONTENT_LENGTH'] = str(len(body))
+    if ctx["httpMethod"] in ["POST", "PUT", "PATCH"]:
+        environ["CONTENT_LENGTH"] = str(len(body))
 
     for header_name, header_value in headers.items():
-        wsgi_name = 'HTTP_{}'.format(header_name.upper().replace('-', '_'))
+        wsgi_name = "HTTP_{}".format(header_name.upper().replace("-", "_"))
         environ[wsgi_name] = str(header_value)
 
     return environ
 
 
-def get_connexion_app(app_name, app_swagger_path, strict_validation=True,
-                      validate_responses=True, cache_app=True, logger=None):
+def get_connexion_app(
+    app_name,
+    app_swagger_path,
+    strict_validation=True,
+    validate_responses=True,
+    cache_app=True,
+    logger=None,
+):
     # Optionally cache application instances, because it takes a significant
     # amount of time to process the Swagger definition, and we shouldn't be
     # doing it on every single request.
@@ -263,8 +250,15 @@ def get_connexion_app(app_name, app_swagger_path, strict_validation=True,
     return _app_cache[app_name]
 
 
-def call_api(event, app_name, app_swagger_path, logger, strict_validation=True,
-             validate_responses=True, cache_app=True):
+def call_api(
+    event,
+    app_name,
+    app_swagger_path,
+    logger,
+    strict_validation=True,
+    validate_responses=True,
+    cache_app=True,
+):
     """Wire up the incoming Lambda/API Gateway request to an application.
 
     :param dict event:
@@ -296,9 +290,15 @@ def call_api(event, app_name, app_swagger_path, logger, strict_validation=True,
     return app.call_api(event)
 
 
-def call_proxy_api(event, app_name, app_swagger_path, logger,
-                   strict_validation=True, validate_responses=True,
-                   cache_app=True):
+def call_proxy_api(
+    event,
+    app_name,
+    app_swagger_path,
+    logger,
+    strict_validation=True,
+    validate_responses=True,
+    cache_app=True,
+):
     """Wire up the incoming Lambda/API Gateway request to an application.
 
     Integration type of the resource must be AWS_LAMBDA in order for this to

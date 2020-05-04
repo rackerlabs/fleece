@@ -136,47 +136,42 @@ def myapp_get_user(user_id):
     status = 200
     if user_id == 123:
         response = {
-            'full_name': 'Bob User',
-            'email': 'bob@example.com',
-            'active': False,
-            'user_id': 123,
+            "full_name": "Bob User",
+            "email": "bob@example.com",
+            "active": False,
+            "user_id": 123,
         }
     elif user_id == 456:
         response = {
-            'full_name': 'Alice User',
-            'email': 'alice@example.com',
-            'active': True,
-            'user_id': 456,
+            "full_name": "Alice User",
+            "email": "alice@example.com",
+            "active": True,
+            "user_id": 456,
         }
     elif user_id == 789:
         response = {
-            'full_name': 'Carol User',
-            'email': 'carol@example.com',
-            'active': False,
+            "full_name": "Carol User",
+            "email": "carol@example.com",
+            "active": False,
             # This should trigger a 500 error response, since the user_id must
             # be an integer.
-            'user_id': '789',
+            "user_id": "789",
         }
     elif user_id == 404:
         # user not found
         status = 404
-        response = {
-            'error': {
-                'message': 'user not found',
-                'code': status,
-            }
-        }
+        response = {"error": {"message": "user not found", "code": status}}
     elif user_id == 500:
         # A real "internal server error".
-        raise TypeError('something unexpected happened')
+        raise TypeError("something unexpected happened")
     return response, status, headers
 
 
 def myapp_create_user(**kwargs):
     headers = {}
     body = flask.request.get_json()
-    body['user_id'] = 777
-    body['active'] = True
+    body["user_id"] = 777
+    body["active"] = True
     status = 201
     return body, status, headers
 
@@ -186,13 +181,13 @@ class TestFleeceApp(unittest.TestCase):
 
     def setUp(self):
         self.swagger_path = tempfile.mktemp()
-        with open(self.swagger_path, 'w') as fp:
+        with open(self.swagger_path, "w") as fp:
             fp.write(TEST_SWAGGER)
 
         self.logger = mock.Mock()
 
         self.app = fleece.connexion.get_connexion_app(
-            'myapp', self.swagger_path, cache_app=False, logger=self.logger,
+            "myapp", self.swagger_path, cache_app=False, logger=self.logger,
         )
 
     def tearDown(self):
@@ -201,160 +196,126 @@ class TestFleeceApp(unittest.TestCase):
 
     def test_get_user_200_response(self):
         event = {
-            'parameters': {
-                'gateway': {'resource-path': '/v1/users/{user_id}'},
-                'request': {
-                    'header': {
-                        'X-Forwarded-Port': '443',
-                        'X-Forwarded-Proto': 'https',
-                        'Host': 'myapp.com',
+            "parameters": {
+                "gateway": {"resource-path": "/v1/users/{user_id}"},
+                "request": {
+                    "header": {
+                        "X-Forwarded-Port": "443",
+                        "X-Forwarded-Proto": "https",
+                        "Host": "myapp.com",
                     },
-                    'body': {},
+                    "body": {},
                     # Variables, as key/value pairs to render into the
                     # resource-path.
-                    'path': {'user_id': '123'},
-                    'querystring': '',
+                    "path": {"user_id": "123"},
+                    "querystring": "",
                 },
             },
-            'rawContext': {
-                'identity': {
-                    'sourceIp': '1.2.3.4',
-                },
-                'httpMethod': 'GET',
-            },
+            "rawContext": {"identity": {"sourceIp": "1.2.3.4"}, "httpMethod": "GET"},
         }
         expected_response = {
-            'active': False,
-            'email': 'bob@example.com',
-            'full_name': 'Bob User',
-            'user_id': 123,
+            "active": False,
+            "email": "bob@example.com",
+            "full_name": "Bob User",
+            "user_id": 123,
         }
         response = self.app.call_api(event)
         self.assertEqual(expected_response, response)
 
     def test_get_user_400_response(self):
         event = {
-            'parameters': {
-                'gateway': {'resource-path': '/v1/users/{user_id}'},
-                'request': {
-                    'header': {
-                        'X-Forwarded-Port': '443',
-                        'X-Forwarded-Proto': 'https',
-                        'Host': 'myapp.com',
+            "parameters": {
+                "gateway": {"resource-path": "/v1/users/{user_id}"},
+                "request": {
+                    "header": {
+                        "X-Forwarded-Port": "443",
+                        "X-Forwarded-Proto": "https",
+                        "Host": "myapp.com",
                     },
-                    'body': {},
-                    'path': {'user_id': '123'},
+                    "body": {},
+                    "path": {"user_id": "123"},
                     # Query string variables, as a list of name/value pairs
                     # In this case, the presence of the query string should
                     # trigger a 400 Bad Request.
-                    'querystring': [('invalid', 'value')]
+                    "querystring": [("invalid", "value")],
                 },
             },
-            'rawContext': {
-                'identity': {
-                    'sourceIp': '1.2.3.4',
-                },
-                'httpMethod': 'GET',
-            },
+            "rawContext": {"identity": {"sourceIp": "1.2.3.4"}, "httpMethod": "GET"},
         }
         with self.assertRaises(fleece.httperror.HTTPError) as ar:
             self.app.call_api(event)
         self.assertEqual(400, ar.exception.status_code)
         self.assertEqual(
-            '400: Bad Request - Extra query parameter(s) invalid not in spec',
-            str(ar.exception)
+            "400: Bad Request - Extra query parameter(s) invalid not in spec",
+            str(ar.exception),
         )
 
     def test_get_user_404_response(self):
         event = {
-            'parameters': {
-                'gateway': {'resource-path': '/v1/users/{user_id}'},
-                'request': {
-                    'header': {
-                        'X-Forwarded-Port': '443',
-                        'X-Forwarded-Proto': 'https',
-                        'Host': 'myapp.com',
+            "parameters": {
+                "gateway": {"resource-path": "/v1/users/{user_id}"},
+                "request": {
+                    "header": {
+                        "X-Forwarded-Port": "443",
+                        "X-Forwarded-Proto": "https",
+                        "Host": "myapp.com",
                     },
-                    'body': {},
+                    "body": {},
                     # This will trigger a 404.
-                    'path': {'user_id': '404'},
-                    'querystring': []
+                    "path": {"user_id": "404"},
+                    "querystring": [],
                 },
             },
-            'rawContext': {
-                'identity': {
-                    'sourceIp': '1.2.3.4',
-                },
-                'httpMethod': 'GET',
-            },
+            "rawContext": {"identity": {"sourceIp": "1.2.3.4"}, "httpMethod": "GET"},
         }
         with self.assertRaises(fleece.httperror.HTTPError) as ar:
             self.app.call_api(event)
         self.assertEqual(404, ar.exception.status_code)
-        self.assertEqual(
-            '404: Not Found - user not found',
-            str(ar.exception)
-        )
+        self.assertEqual("404: Not Found - user not found", str(ar.exception))
 
     def test_get_user_500_response(self):
         event = {
-            'parameters': {
-                'gateway': {'resource-path': '/v1/users/{user_id}'},
-                'request': {
-                    'header': {
-                        'X-Forwarded-Port': '443',
-                        'X-Forwarded-Proto': 'https',
-                        'Host': 'myapp.com',
+            "parameters": {
+                "gateway": {"resource-path": "/v1/users/{user_id}"},
+                "request": {
+                    "header": {
+                        "X-Forwarded-Port": "443",
+                        "X-Forwarded-Proto": "https",
+                        "Host": "myapp.com",
                     },
-                    'body': {},
-                    'path': {'user_id': '500'},
-                    'querystring': []
+                    "body": {},
+                    "path": {"user_id": "500"},
+                    "querystring": [],
                 },
             },
-            'rawContext': {
-                'identity': {
-                    'sourceIp': '1.2.3.4',
-                },
-                'httpMethod': 'GET',
-            },
+            "rawContext": {"identity": {"sourceIp": "1.2.3.4"}, "httpMethod": "GET"},
         }
         with self.assertRaises(fleece.httperror.HTTPError) as ar:
             self.app.call_api(event)
         self.assertEqual(500, ar.exception.status_code)
-        self.assertEqual(
-            '500: Internal Server Error',
-            str(ar.exception)
-        )
+        self.assertEqual("500: Internal Server Error", str(ar.exception))
 
     def test_get_user_500_response_contract_violation(self):
         event = {
-            'parameters': {
-                'gateway': {'resource-path': '/v1/users/{user_id}'},
-                'request': {
-                    'header': {
-                        'X-Forwarded-Port': '443',
-                        'X-Forwarded-Proto': 'https',
-                        'Host': 'myapp.com',
+            "parameters": {
+                "gateway": {"resource-path": "/v1/users/{user_id}"},
+                "request": {
+                    "header": {
+                        "X-Forwarded-Port": "443",
+                        "X-Forwarded-Proto": "https",
+                        "Host": "myapp.com",
                     },
-                    'body': {},
-                    'path': {'user_id': '789'},
-                    'querystring': []
+                    "body": {},
+                    "path": {"user_id": "789"},
+                    "querystring": [],
                 },
             },
-            'rawContext': {
-                'identity': {
-                    'sourceIp': '1.2.3.4',
-                },
-                'httpMethod': 'GET',
-            },
+            "rawContext": {"identity": {"sourceIp": "1.2.3.4"}, "httpMethod": "GET"},
         }
         with self.assertRaises(fleece.httperror.HTTPError) as ar:
             self.app.call_api(event)
         self.assertEqual(500, ar.exception.status_code)
-        self.assertEqual(
-            '500: Internal Server Error',
-            str(ar.exception)
-        )
+        self.assertEqual("500: Internal Server Error", str(ar.exception))
 
         # Since this error was triggered because of an API contract voilation,
         # check that it is explicitly logged:
@@ -367,9 +328,7 @@ Failed validating 'type' in schema['properties']['user_id']:
 On instance['user_id']:
     u'789'"""
         if six.PY3:
-            expected_log_error_detail = expected_log_error_detail.replace(
-                "u'", "'"
-            )
+            expected_log_error_detail = expected_log_error_detail.replace("u'", "'")
         self.assertEqual(1, self.logger.error.call_count)
         self.logger.error.assert_called_with(
             fleece.connexion.RESPONSE_CONTRACT_VIOLATION,
@@ -379,34 +338,26 @@ On instance['user_id']:
     def test_create_user_201_response(self):
         # This test shows how to create an event for a POST.
         event = {
-            'parameters': {
-                'gateway': {'resource-path': '/v1/users'},
-                'request': {
-                    'header': {
-                        'X-Forwarded-Port': '443',
-                        'X-Forwarded-Proto': 'https',
-                        'Host': 'myapp.com',
+            "parameters": {
+                "gateway": {"resource-path": "/v1/users"},
+                "request": {
+                    "header": {
+                        "X-Forwarded-Port": "443",
+                        "X-Forwarded-Proto": "https",
+                        "Host": "myapp.com",
                     },
-                    'body': {
-                        'full_name': 'Erin User',
-                        'email': 'erin@example.com',
-                    },
-                    'path': {},
-                    'querystring': []
+                    "body": {"full_name": "Erin User", "email": "erin@example.com"},
+                    "path": {},
+                    "querystring": [],
                 },
             },
-            'rawContext': {
-                'identity': {
-                    'sourceIp': '1.2.3.4',
-                },
-                'httpMethod': 'POST',
-            },
+            "rawContext": {"identity": {"sourceIp": "1.2.3.4"}, "httpMethod": "POST"},
         }
         response = self.app.call_api(event)
         expected_response = {
-            'active': True,
-            'user_id': 777,
-            'email': 'erin@example.com',
-            'full_name': 'Erin User',
+            "active": True,
+            "user_id": 777,
+            "email": "erin@example.com",
+            "full_name": "Erin User",
         }
         self.assertEqual(expected_response, response)

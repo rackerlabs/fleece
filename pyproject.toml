@@ -50,15 +50,15 @@ wsgi = [
 [tool.poetry.dependencies]
 python    = "^3.6"
 # connecxion
-connexion     = { version = "1.1.9", optional = true }
-Flask         = { version = "1.1.1", optional = true }
+connexion     = { version = ">=1.1.9", optional = true }
+Flask         = { version = ">=1.1.1", optional = true }
 # cli
-docker        = { version = "3.5.1", optional = true }
+docker        = { version = ">=3.5.1", optional = true }
 PyYAML        = { version = ">=3.12", optional = true }
 "ruamel.yaml" = { version = ">=0.15.34", optional = true }
 six           = { version = ">=1.11.0", optional = true}
 # wsgi and connecxion
-Werkzeug      = { version = "0.15.5", optional = true }
+Werkzeug      = { version = ">=0.15.5", optional = true }
 structlog     = ">=15.3.0"
 requests      = ">=2.9.1"
 boto3         = ">=1.0.0"
@@ -70,18 +70,18 @@ flake8        = ">=2.5.1"
 mock          = ">=1.3.0"
 nose          = ">=1.3.7"
 pylint        = ">=1.5.4"
-docker        = "3.5.1"
-taskipy       = "^1.2.1"
-moto          = "^1.3.14"
-black         = "^19.10b0"
-safety        = "^1.9.0"
-isort         = "^4.3.21"
-pytest        = "^5.4.1"
-Werkzeug      = "0.15.5"
-bandit        = "^1.6.2"
+docker        = ">=3.5.1"
+taskipy       = ">=1.2.1"
+moto          = ">=1.3.14"
+black         = ">=19.10b0"
+safety        = ">=1.9.0"
+isort         = ">=4.3.21"
+pytest        = ">=5.4.1"
+Werkzeug      = ">=0.15.5"
+bandit        = ">=1.6.2"
 "ruamel.yaml" = ">=0.15.34"
-Flask         = "1.1.1"
-connexion     = "1.1.9"
+Flask         = ">=1.1.1"
+connexion     = ">=1.1.9"
 
 [tool.taskipy.tasks]
 pytest = "pytest"

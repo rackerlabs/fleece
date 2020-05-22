@@ -21,6 +21,10 @@ import threading
 import time
 import uuid
 
+from aws_xray_sdk.core import patch as aws_xray_patch
+from aws_xray_sdk.core import patch_all
+from aws_xray_sdk.core import xray_recorder
+
 from botocore.exceptions import ClientError
 import wrapt
 
@@ -496,3 +500,25 @@ def to_safe_annotation_key(key):
 def to_safe_annotation_value(value):
     """Xray doesn't like values that are not strings."""
     return str(value)
+
+
+def patch(modules=None):  # type: (t.Optional[t.List[str]]) -> None
+    """
+    Patch known external packages, (requests, pynamo, etc) along with the
+    given set of modules.
+    """
+    if os.environ.get("AWS_XRAY_DAEMON_ADDRESS") is not None:
+        patch_all()
+        if modules:
+            aws_xray_patch(modules)
+
+
+def log_args(lambda_context):  # type: (t.Any) -> t.Mapping
+    """
+    Returns arguments that should be bound to a log (via .new or .bind) when a
+    lambda handler is first called.
+    """
+    return log.get_initial_trace_and_context_binds(
+        trace_id=xray_recorder.get_trace_entity().trace_id,
+        lambda_context=lambda_context
+    )

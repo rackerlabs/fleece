@@ -5,6 +5,7 @@ import unittest
 import mock
 
 from fleece import xray
+from fleece import testing
 
 
 class GetTraceIDTestCase(unittest.TestCase):
@@ -124,3 +125,72 @@ class SendSubsegmentToXRayDaemonTestCase(unittest.TestCase):
         self.assertEqual(segment_document['end_time'], end_time)
         self.assertEqual(segment_document['name'], 'NAME')
         self.assertEqual(segment_document['foo'], 'BAR')
+
+
+class TestPatch(unittest.TestCase):
+    def setUp(self):
+        self.patch = mock.patch('fleece.xray.aws_xray_patch').start()
+        self.patch_all = mock.patch('fleece.xray.patch_all').start()
+
+    def tearDown(self):
+        self.patch.stop()
+        self.patch_all.stop()
+
+    def test_patch_when_not_in_lambda(self):
+        xray.patch()
+        self.patch_all.assert_not_called()
+        self.patch.assert_not_called()
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            'AWS_XRAY_DAEMON_ADDRESS': 'http://localhost',  # noqa
+        }
+    )
+    def test_patch_when_in_lambda(self):
+        xray.patch()
+        self.patch_all.assert_called_once()
+        self.patch.assert_not_called()
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            'AWS_XRAY_DAEMON_ADDRESS': 'http://localhost',  # noqa
+        }
+    )
+    def test_patch_when_in_lambda_2(self):
+        xray.patch(["fleece.utils"])
+        self.patch_all.assert_called_once()
+        self.patch.assert_called_once()
+
+
+class TestLogArgs(unittest.TestCase):
+    def setUp(self):
+        self.maxDiff = None
+        self.get_trace_entity = mock.patch(
+            'fleece.xray.xray_recorder.get_trace_entity').start()
+
+    def tearDown(self):
+        self.get_trace_entity.stop()
+
+    def test_patch_when_not_in_lambda(self):
+        class Trace:
+            def __init__(self):
+                self.trace_id = "trace-id"
+
+        self.get_trace_entity.return_value = Trace()
+        lambda_context = testing.LambdaContext("FakeFunction")
+        actual = xray.log_args(lambda_context)
+        expected = {
+            "trace_id": 'trace-id',
+            "lambda_context": {
+                "function_name": lambda_context.function_name,
+                "function_version": lambda_context.function_version,
+                "invoked_function_arn": lambda_context.invoked_function_arn,
+                "memory_limit_in_mb": lambda_context.memory_limit_in_mb,
+                "aws_request_id": lambda_context.aws_request_id,
+                "log_group_name": lambda_context.log_group_name,
+                "log_stream_name": lambda_context.log_stream_name,
+            }
+        }
+        self.assertEqual(expected, actual)

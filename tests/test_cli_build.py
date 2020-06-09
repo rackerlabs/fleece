@@ -3,16 +3,10 @@ import shutil
 import tempfile
 import unittest
 
-import six
-
 from fleece.cli.build import build
 
-if six.PY2:
-    import mock
-    from StringIO import StringIO
-else:
-    from unittest import mock
-    from io import StringIO
+from unittest import mock
+from io import StringIO
 
 
 class TestBuildDispatchesToCorrectFunction(unittest.TestCase):

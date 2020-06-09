@@ -1,50 +1,46 @@
+---
 version: 2.1
 
 executors:
-  py36:
-    working_directory: ~/repo
+  python:
+    parameters:
+      working_directory:
+        type: string
+        default: ~/repo
+      python_version_tag:
+        type: string
+        default: "3.6"
+    working_directory: <<parameters.working_directory>>
     docker:
-      - image: circleci/python:3.6
+        - image: circleci/python:<<parameters.python_version_tag>>
 
 jobs:
-  install_dependencies_py3:
-    executor: py36
+  test:
+    parameters:
+      python_version_tag:
+        type: string
+        default: "3.6"
+    executor:
+      name: python
+      python_version_tag: <<parameters.python_version_tag>>
     steps:
       - checkout
-      - restore_cache:
-          key: virtualenv-py3-v1-{{ checksum "poetry.lock" }}
       - attach_workspace:
           at: ~/repo
       - run:
           name: Install Python build dependencies
           command: |
             poetry install
-      - persist_to_workspace:
-          root: ~/repo
-          paths: [.venv]
-      - save_cache:
-          key: virtualenv-py3-v1-{{ checksum "poetry.lock" }}
-          paths: [.venv]
-  test_py3:
-    executor: py36
-    steps:
-      - checkout
-      - restore_cache:
-          key: virtualenv-py3-v1-{{ checksum "poetry.lock" }}
-      - attach_workspace:
-          at: ~/repo
       - run:
           name: Run tests
           command: |
             poetry run task ci
-      - save_cache:
-          key: virtualenv-py3-v1-{{ checksum "poetry.lock" }}
-          paths: [.venv]
 
 workflows:
   version: 2
-  test:
+  CI_CD:
     jobs:
-      - install_dependencies_py3
-      - test_py3:
-          requires: [install_dependencies_py3]
+      - test:
+          matrix:
+            parameters:
+              python_version_tag: ["3.6", "3.7", "3.8"]

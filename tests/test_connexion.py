@@ -7,10 +7,7 @@ import six
 
 import fleece.connexion
 
-if six.PY2:
-    import mock
-else:
-    from unittest import mock
+from unittest import mock
 
 # NOTE(larsbutler): The one thing that is not shown here are the
 # x-amazon-apigateway-integration response templates which API Gateway can use

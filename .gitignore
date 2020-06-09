@@ -74,3 +74,4 @@ README.rst
 !/poetry.lock
 .venv/
 requirements.txt
+poetry.lock

@@ -84,7 +84,7 @@ Flask         = ">=1.1.1"
 connexion     = ">=1.1.9"
 
 [tool.taskipy.tasks]
-pytest = "pytest"
+pytest = "pytest --junitxml=test-results/junit.xml"
 bandit = "bandit -c .bandit.yml -r fleece/"
 black = "black fleece"
 black_ci = "black -check fleece"

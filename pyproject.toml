@@ -19,8 +19,8 @@ classifiers = [
     'Programming Language :: Python :: 3.8',
 ]
 
-authors = ["Bruce Stringer <bruce.stringer@rackspace.com>"]
-maintainers = ["Bruce Stringer <bruce.stringer@rackspace.com>"]
+authors = ["Bruce Stringer <bruce.stringer@rackspace.com>", "Ryan Walker <ryan.walker@rackspace.com>", "Szilveszter Farkas <szilveszter.farkas@rackspace.com>","Tim Simpson <tim.simpson@rackspace.com>"]
+maintainers = ["Bruce Stringer <bruce.stringer@rackspace.com>", "Ryan Walker <ryan.walker@rackspace.com>", "Szilveszter Farkas <szilveszter.farkas@rackspace.com>","Tim Simpson <tim.simpson@rackspace.com>"]
 
 include = ["fleece/cli/build/Dockerfile", "fleece/cli/build/docker_build_lambda.sh"]
 

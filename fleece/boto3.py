@@ -3,13 +3,13 @@ from __future__ import absolute_import
 import boto3 as real_boto3
 from botocore.client import Config
 
-from boto3 import docs  # noqa: F401; noqa: F401
-from boto3 import exceptions  # noqa: F401; noqa: F401
-from boto3 import logging  # noqa: F401; noqa: F401
-from boto3 import resources  # noqa: F401; noqa: F401
-from boto3 import session  # noqa: F401; noqa: F401
-from boto3 import set_stream_logger  # noqa: F401; noqa: F401
-from boto3 import setup_default_session  # noqa: F401; noqa: F401
+from boto3 import docs  # noqa: F401
+from boto3 import exceptions  # noqa: F401
+from boto3 import logging  # noqa: F401
+from boto3 import resources  # noqa: F401
+from boto3 import session  # noqa: F401
+from boto3 import set_stream_logger  # noqa: F401
+from boto3 import setup_default_session  # noqa: F401
 
 DEFAULT_TIMEOUT = None
 DEFAULT_CONNECT_TIMEOUT = None

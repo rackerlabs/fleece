@@ -33,8 +33,8 @@ class HTTPError(Exception):
 
         # Don't explode if provided status_code isn't found.
         _message = responses.get(self.status_code, [""])
-        error_message = "{0:d}: {1}".format(self.status_code, _message[0])
+        error_message = f"{self.status_code:d}: {_message[0]}"
         if message:
-            error_message = "{0} - {1}".format(error_message, message)
+            error_message = f"{error_message} - {message}"
 
         super(HTTPError, self).__init__(error_message)

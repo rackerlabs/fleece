@@ -6,7 +6,7 @@ commands = ["build", "run", "config"]
 
 
 def print_help():
-    print("Available sub-commands: {}.".format(", ".join(commands)))
+    print(f'Available sub-commands: {", ".join(commands)}.')
     print('Use "fleece <sub-command> --help" for usage.')
 
 
@@ -28,8 +28,7 @@ def main():
                     __import__(dep.project_name)
             except ImportError:
                 print(
-                    'Dependency "{}" is not installed. Did you run '
-                    '"pip install fleece[cli]"?'.format(dep)
+                    f'Dependency "{dep}" is not installed. Did you run "pip install fleece[cli]"?'
                 )
                 sys.exit(1)
 
@@ -39,5 +38,5 @@ def main():
         getattr(module, "main")(sys.argv[2:])
     else:
         if sys.argv[1] not in ["--help", "-h"]:
-            print('"{}" is not an available fleece sub-command.'.format(sys.argv[1]))
+            print(f'"{sys.argv[1]}" is not an available fleece sub-command.')
         print_help()

@@ -65,7 +65,7 @@ def get_version_hash():
             shell=True,
         ).decode('utf-8').strip()
     except Exception as exc:
-        print('Could not determine SHA1: {}'.format(exc))
+        print(f"Could not determine SHA1: {exc}")
         sha1 = None
 
     return sha1
@@ -121,7 +121,7 @@ def destroy_volume(name):
         volume.remove()
     except docker.errors.APIError as exc:
         if '409 Client Error' in str(exc):
-            print('Unable to remove volume - {}\n{}'.format(name, str(exc)))
+            print(f'Unable to remove volume - {name}\n{str(exc)}')
         else:
             raise
 
@@ -192,8 +192,7 @@ def build(args):
     if requirements_path:
         print(requirements_path)
         if not os.path.exists(requirements_path):
-            print('Error: requirements file {} not found!'.format(
-                requirements_path))
+            print(f'Error: requirements file {requirements_path} not found!')
             sys.exit(1)
         _build(service_name=service_name,
                python_version=python_version,
@@ -207,7 +206,7 @@ def build(args):
     else:
         print(pipfile)
         if not os.path.exists(pipfile):
-            print('Error: pipfile {} not found!'.format(pipfile))
+            print(f'Error: pipfile {pipfile} not found!')
             sys.exit(1)
 
         _build_with_pipenv(service_name=service_name,
@@ -262,7 +261,7 @@ def _build_with_pipenv(service_name, python_version, src_dir, pipfile,
 
 def _build(service_name, python_version, src_dir, requirements_path,
            dependencies, rebuild, exclude, dist_dir, inject_build_info):
-    print('Building {} with {}...'.format(service_name, python_version))
+    print(f'Building {service_name} with {python_version}...')
 
     try:
         docker_api = docker.from_env(version='auto')
@@ -278,29 +277,29 @@ def _build(service_name, python_version, src_dir, requirements_path,
         dependencies_sha1 = hashlib.sha1(fp.read()).hexdigest()  # nosec
 
     # Set up volumes
-    src_name = '{}-src'.format(service_name)
-    req_name = '{}-requirements'.format(service_name)
-    dist_name = '{}-dist'.format(service_name)
+    src_name = f'{service_name}-src'
+    req_name = f'{service_name}-requirements'
+    dist_name = f'{service_name}-dist'
     create_volume(src_name)
     create_volume(req_name)
     create_volume(dist_name)
 
     src = create_volume_container(
         volumes=[
-            '{}:/src'.format(src_name),
-            '{}:/requirements'.format(req_name),
-            '{}:/dist'.format(dist_name)]
+            f'{src_name}:/src',
+            f'{req_name}:/requirements',
+            f'{dist_name}:/dist']
     )
 
     # We want our build cache to remain over time if possible.
-    build_cache_name = '{}-build_cache'.format(service_name)
+    build_cache_name = f'{service_name}-build_cache'
     try:
         build_cache = docker_api.containers.get(build_cache_name)
     except errors.NotFound:
         create_volume(build_cache_name)
         build_cache = create_volume_container(
             name=build_cache_name,
-            volumes=['{}:/build_cache'.format(build_cache_name)])
+            volumes=[f'{build_cache_name}:/build_cache'])
 
     # Inject our source and requirements
     put_files(src, src_dir, '/src')
@@ -313,7 +312,7 @@ def _build(service_name, python_version, src_dir, requirements_path,
                    'BUILD_TIME': datetime.utcnow().isoformat(),
                    'REBUILD_DEPENDENCIES': '1' if rebuild else '0',
                    'EXCLUDE_PATTERNS': ' '.join(
-                       ['"{}"'.format(e) for e in exclude or []])}
+                       [f'"{e}"' for e in exclude or []])}
     for var, value in os.environ.items():
         if var.startswith('PIP_'):
             environment[var] = value
@@ -335,8 +334,7 @@ def _build(service_name, python_version, src_dir, requirements_path,
     error_msg = status.get('Error')
 
     if exit_code or exit_code is None:
-        print('Error: build ended with exit code = '
-              '{}\nError Message: {}.'.format(exit_code, error_msg))
+        print(f"Error: build ended with exit code = {exit_code}\nError Message: {error_msg}.")
     else:
         # Pull out our built zip
         retrieve_archive(container, dist_dir)

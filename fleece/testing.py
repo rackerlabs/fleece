@@ -70,18 +70,15 @@ class LambdaContext(object):
         return self._remaining_time_in_milli
 
     def _generate_log_group_name(self):
-        log_group_format = "/aws/lambda/{function_name}"
-        return log_group_format.format(function_name=self.function_name)
+        return f"/aws/lambda/{self.function_name}"
 
     def _generate_log_stream_name(self):
-        stream_format = "{year}/{month}/{day}/[{iterator}]/{random_id}"
-        return stream_format.format(
-            year=datetime.datetime.year,
-            month=datetime.datetime.month,
-            day=datetime.datetime.day,
-            iterator=str(random.randint(1, 999)),  # nosec
-            random_id=str(uuid.uuid4()).replace("-", ""),
-        )
+        year = datetime.datetime.year
+        month = datetime.datetime.month
+        day = datetime.datetime.day
+        iterator = str(random.randint(1, 999))  # nosec
+        random_id = str(uuid.uuid4()).replace("-", "")
+        return f"{year}/{month}/{day}/[{iterator}]/{random_id}"
 
     def _generate_aws_request_id(self):
         return str(uuid.uuid4())
@@ -90,14 +87,11 @@ class LambdaContext(object):
         return {}
 
     def _generate_function_arn(self):
-        arn_format = "arn:aws:lambda:{region}:{account_id}:function:{function_name}:{stage}"  # noqa
-
-        return arn_format.format(
-            region=self._region,
-            account_id=self._account_id,
-            function_name=self.function_name,
-            stage=self._stage,
-        )
+        region = self._region
+        account_id = self._account_id
+        function_name = self.function_name
+        stage = self._stage
+        return f"arn:aws:lambda:{region}:{account_id}:function:{function_name}:{stage}"  # noqa
 
 
 class LambdaEvent(object):

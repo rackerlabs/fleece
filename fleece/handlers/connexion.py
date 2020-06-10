@@ -216,7 +216,8 @@ def _build_wsgi_env(event, app_name):
         environ["CONTENT_LENGTH"] = str(len(body))
 
     for header_name, header_value in headers.items():
-        wsgi_name = "HTTP_{}".format(header_name.upper().replace("-", "_"))
+        formatted_header_name = header_name.upper().replace("-", "_")
+        wsgi_name = f"HTTP_{formatted_header_name}"
         environ[wsgi_name] = str(header_value)
 
     return environ

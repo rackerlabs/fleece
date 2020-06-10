@@ -43,8 +43,7 @@ class AWSCredentialCache(object):
                     break
             if account is None:
                 raise ValueError(
-                    'Environment "{}" is not known, add it to '
-                    "environments.yml file".format(environment)
+                    f'Environment "{environment}" is not known, add it to environments.yml file'
                 )
             token, tenant = self._get_rax_token()
             self.awscreds[environment] = run.get_aws_creds(account, tenant, token)
@@ -62,7 +61,7 @@ def _get_stage_data(stage, data=None):
         data = STATE["stages"]
     data = run.get_stage_data(stage, data)
     if data is None:
-        raise ValueError('No match for stage "{}"'.format(stage))
+        raise ValueError(f'No match for stage "{stage}"')
     return data
 
 
@@ -71,7 +70,7 @@ def _get_kms_key(stage):
     try:
         key = stage_data["key"]
     except IndexError:
-        raise ValueError('No key defined for stage "{}"'.format(stage))
+        raise ValueError(f'No key defined for stage "{stage}"')
     if key.startswith("alias/") or key.startswith("arn:"):
         return key
     return "alias/" + key
@@ -82,7 +81,7 @@ def _get_environment(stage):
     try:
         return stage_data["environment"]
     except IndexError:
-        raise ValueError('No environment defined for stage "{}"'.format(stage))
+        raise ValueError(f'No environment defined for stage "{stage}"')
 
 
 def _encrypt_text(text, stage):
@@ -118,8 +117,7 @@ def _encrypt_item(data, stage, key):
     ) and data.startswith(":encrypt:"):
         if not stage:
             sys.stderr.write(
-                'Warning: Key "{}" cannot be encrypted because '
-                "it does not belong to a stage\n".format(key)
+                f'Warning: Key "{key}" cannot be encrypted because it does not belong to a stage\n'
             )
         else:
             data = ":decrypt:" + _encrypt_text(data[9:], stage)
@@ -128,8 +126,7 @@ def _encrypt_item(data, stage, key):
         if any(per_stage):
             if not all(per_stage):
                 raise ValueError(
-                    'Keys "{}" have a mix of stage and non-stage '
-                    "variables".format(", ".join(data.keys))
+                    f'Keys "{", ".join(data.keys)}" have a mix of stage and non-stage variables'
                 )
             key_prefix = key + "." if key else ""
             for k, v in data.items():
@@ -184,8 +181,7 @@ def _decrypt_item(data, stage, key, render):
         if any(per_stage):
             if not all(per_stage):
                 raise ValueError(
-                    'Keys "{}" have a mix of stage and non-stage '
-                    "variables".format(", ".join(data.keys))
+                    f'Keys "{", ".join(data.keys)}" have a mix of stage and non-stage variables'
                 )
         if render:
             if per_stage[0]:
@@ -197,9 +193,7 @@ def _decrypt_item(data, stage, key, render):
                         data.get(stage, stage_data), stage=stage, key=key, render=render
                     )
                 else:
-                    raise ValueError(
-                        'Key "{}" has no value for stage ' '"{}"'.format(key, stage)
-                    )
+                    raise ValueError(f'Key "{key}" has no value for stage "{stage}"')
             else:
                 data = _decrypt_dict(data, stage=stage, key=key, render=render)
         else:
@@ -289,38 +283,28 @@ def write_to_parameter_store(env, prefix, config, ssm_kms_key=None):
     awscreds = STATE["awscreds"].get_awscreds(environment)
 
     if not prefix.startswith("/"):
-        msg = (
-            "Parameter store names must be fully qualified (start with a "
-            'slash), so the given prefix "{}"" is invalid.'.format(prefix)
+        raise ValueError(
+            f'Parameter store names must be fully qualified (start with a slash), so the given prefix "{prefix}" is invalid.'
         )
-        raise ValueError(msg)
 
     def validate(name, value):
         if name.count("/") > 15:
-            msg = (
-                'Error writing name "{}": parameter store names allow for '
-                "no more than 15 levels of hierarchy.".format(name)
+            raise ValueError(
+                f'Error writing name "{name}": parameter store names allow for no more than 15 levels of hierarchy.'
             )
-            raise ValueError(msg)
 
         if not PARAMETER_STORE_NAME.match(name):
-            msg = (
-                'Error: invalid parameter name "{}". Parameter store names '
-                "may consist of only symbols and letters (a-zA-Z0-9_.-/)".format(name)
+            raise ValueError(
+                f'Error: invalid parameter name "{name}". Parameter store names may consist of only symbols and letters (a-zA-Z0-9_.-/)'
             )
-            raise ValueError(msg)
 
         if not isinstance(value, (six.string_types, dict)):
-            msg = (
-                "Error: all config values must be strings or dictionaries "
-                "to work with parameter store, can't handle {} of type {}".format(
-                    name, type(value)
-                )
+            raise ValueError(
+                f"Error: all config values must be strings or dictionaries to work with parameter store, can't handle {name} of type {type(value)}"
             )
-            raise ValueError(msg)
         elif isinstance(value, dict):
             for k, v in value.items():
-                validate("{}/{}".format(name, k), v)
+                validate(f"{name}/{k}", v)
 
     validate(prefix, config)
 
@@ -333,8 +317,7 @@ def write_to_parameter_store(env, prefix, config, ssm_kms_key=None):
     account_id = sts.get_caller_identity()["Account"]
 
     print(
-        "Writing config with parameter store prefix {prefix} to AWS "
-        "account {account_id}".format(prefix=prefix, account_id=account_id)
+        f"Writing config with parameter store prefix {prefix} to AWS account {account_id}"
     )
 
     ssm = boto3.client(
@@ -353,10 +336,10 @@ def write_to_parameter_store(env, prefix, config, ssm_kms_key=None):
     def put(name, value):
         if isinstance(value, dict):
             for k, v in value.items():
-                put("{}/{}".format(name, k), v)
+                put(f"{name}/{k}", v)
         elif isinstance(value, six.string_types):
             ps_name = name
-            print("Writing {}...".format(ps_name))
+            print(f"Writing {ps_name}...")
             if ssm_kms_key is not None:
                 # fetch the full keyid from the alias
                 ssm_kms_key_id = kms.describe_key(KeyId=ssm_kms_key)["KeyMetadata"][
@@ -411,7 +394,7 @@ def render_config(args, output_file=None):
         if not args.python:
             rendered_config = json.dumps(encrypted_config)
         else:
-            rendered_config = """ENCRYPTED_CONFIG = {}
+            rendered_config = f"""ENCRYPTED_CONFIG = {encrypted_config}
 import base64
 import boto3
 import json
@@ -426,9 +409,7 @@ def load_config():
     return json.loads(config_json)
 
 CONFIG = load_config()
-""".format(
-                encrypted_config
-            )
+"""
     output_file.write(rendered_config)
 
 

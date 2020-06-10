@@ -17,12 +17,9 @@ NO_STAGE_DATA = 'No stage named "{}" found in config'
 NO_ENV_IN_STAGE = 'No default environment defined for stage "{}"'
 ENV_AND_ACCT_ERROR = "Use only ONE of `--environment` or `--account`"
 NO_ACCT_OR_ENV_ERROR = "You must provide either `--environment` or `--account`"
-ENV_AND_ROLE_ERROR = (
-    "`--role` cannot be used with `--environment` "
-    "- use `role: <rolename>` in the config file instead"
-)
+ENV_AND_ROLE_ERROR = "`--role` cannot be used with `--environment` - use `role: <rolename>` in the config file instead"
 FAWS_API_URL = (
-    "https://accounts.api.manage.rackspace.com/v0/awsAccounts/{0}" "/credentials"
+    "https://accounts.api.manage.rackspace.com/v0/awsAccounts/{0}/credentials"
 )
 RS_IDENTITY_URL = "https://identity.api.rackspacecloud.com/v2.0/tokens"
 FAWS_API_ERROR = "Could not fetch AWS Account credentials.\nStatus: {}\n" "Reason: {}"
@@ -123,7 +120,7 @@ def assume_role(credentials, account, role):
         aws_session_token=credentials["sessionToken"],
     )
     resp = sts.assume_role(
-        RoleArn="arn:aws:sts::{}:role/{}".format(account, role),
+        RoleArn=f"arn:aws:sts::{account}:role/{role}",
         RoleSessionName="fleece_assumed_role",
     )
     return {

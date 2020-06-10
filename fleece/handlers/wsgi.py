@@ -35,7 +35,7 @@ def wsgi_handler(event, context, app, logger):
     wsgi_status = []
     wsgi_headers = []
 
-    logger.info("Processing {} request".format(environ["REQUEST_METHOD"]))
+    logger.info(f"Processing {environ['REQUEST_METHOD']} request")
 
     def start_response(status, headers):
         if len(wsgi_status) or len(wsgi_headers):
@@ -50,8 +50,6 @@ def wsgi_handler(event, context, app, logger):
         "body": b"".join(resp).decode("utf-8"),
     }
 
-    logger.info(
-        "Returning {}".format(proxy["statusCode"]), http_status=proxy["statusCode"]
-    )
+    logger.info(f"Returning {proxy['statusCode']}", http_status=proxy["statusCode"])
 
     return proxy

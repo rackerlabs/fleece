@@ -127,13 +127,9 @@ def send_segment_document_to_xray_daemon(segment_document):
     except XRayDaemonNotFoundError:
         LOGGER.error("X-Ray Daemon not running, skipping send")
         return
-
-    message = u"{header}\n{document}".format(
-        header=json.dumps(XRAY_DAEMON_HEADER),
-        document=json.dumps(
-            segment_document, ensure_ascii=False, cls=StringJSONEncoder,
-        ),
-    )
+    header = (json.dumps(XRAY_DAEMON_HEADER),)
+    document = json.dumps(segment_document, ensure_ascii=False, cls=StringJSONEncoder,)
+    message = f"{header}\n{document}"
 
     send_data_on_udp(
         ip_address=xray_daemon.ip_address, port=xray_daemon.port, data=message,
@@ -272,7 +268,7 @@ def generic_xray_wrapper(
             "exceptions": [
                 {
                     "message": str(exc),
-                    "type": "{}.{}".format(type(exc).__module__, type(exc).__name__,),
+                    "type": f"{type(exc).__module__}.{type(exc).__name__}",
                 }
             ]
         }

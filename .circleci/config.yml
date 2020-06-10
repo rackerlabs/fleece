@@ -37,9 +37,12 @@ jobs:
             poetry run task ci
       - store_test_results:
           path: test-results
-
       - store_artifacts:
           path: test-results
+      - store_artifacts:
+          path: poetry.lock
+      - store_artifacts:
+          path: requirements.txt
 
 workflows:
   version: 2

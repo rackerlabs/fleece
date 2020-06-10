@@ -11,7 +11,6 @@ from io import StringIO
 import boto3
 import ruamel.yaml as yaml
 import ruamel.yaml.comments
-import six
 
 from fleece.cli.run import run
 
@@ -112,9 +111,9 @@ def _decrypt_text(text, stage):
 
 
 def _encrypt_item(data, stage, key):
-    if (
-        isinstance(data, six.text_type) or isinstance(data, six.binary_type)
-    ) and data.startswith(":encrypt:"):
+    if (isinstance(data, str) or isinstance(data, bytes)) and data.startswith(
+        ":encrypt:"
+    ):
         if not stage:
             sys.stderr.write(
                 f'Warning: Key "{key}" cannot be encrypted because it does not belong to a stage\n'
@@ -168,9 +167,9 @@ def import_config(args, input_file=None):
 
 
 def _decrypt_item(data, stage, key, render):
-    if (
-        isinstance(data, six.text_type) or isinstance(data, six.binary_type)
-    ) and data.startswith(":decrypt:"):
+    if (isinstance(data, str) or isinstance(data, bytes)) and data.startswith(
+        ":decrypt:"
+    ):
         data = _decrypt_text(data[9:], stage)
         if not render or render == "ssm":
             data = ":encrypt:" + data
@@ -298,7 +297,7 @@ def write_to_parameter_store(env, prefix, config, ssm_kms_key=None):
                 f'Error: invalid parameter name "{name}". Parameter store names may consist of only symbols and letters (a-zA-Z0-9_.-/)'
             )
 
-        if not isinstance(value, (six.string_types, dict)):
+        if not isinstance(value, (str, dict)):
             raise ValueError(
                 f"Error: all config values must be strings or dictionaries to work with parameter store, can't handle {name} of type {type(value)}"
             )
@@ -337,7 +336,7 @@ def write_to_parameter_store(env, prefix, config, ssm_kms_key=None):
         if isinstance(value, dict):
             for k, v in value.items():
                 put(f"{name}/{k}", v)
-        elif isinstance(value, six.string_types):
+        elif isinstance(value, str):
             ps_name = name
             print(f"Writing {ps_name}...")
             if ssm_kms_key is not None:

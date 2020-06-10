@@ -6,7 +6,6 @@ from io import StringIO
 from urllib.parse import urlencode
 
 import connexion
-import six
 import werkzeug.wrappers
 
 import fleece.log
@@ -187,7 +186,7 @@ def _build_wsgi_env(event, app_name):
     request = event["parameters"]["request"]
     ctx = event["rawContext"]
     headers = request["header"]
-    body = six.text_type(json.dumps(request["body"]))
+    body = str(json.dumps(request["body"]))
 
     # Render the path correctly so connexion/flask will pass the path params to
     # the handler function correctly.

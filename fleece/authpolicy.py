@@ -30,7 +30,7 @@ class AuthPolicy(object):
         # Policy version should always be '2012-10-17'
         self.version = "2012-10-17"
         # Used to validate resource paths for policy
-        self.path_regex = r"^[/.a-zA-Z0-9-\*]+$"
+        self.path_regex = r'^[/.a-zA-Z0-9-_\*\:]+$'
         # Lists of allowed/denied methods, objects with resource ARN and
         # nullable conditions statement
         self.allowMethods = []

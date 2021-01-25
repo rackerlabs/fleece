@@ -20,6 +20,9 @@ build_dir = os.path.abspath(os.path.dirname(__file__))
 def parse_args(args):
     parser = argparse.ArgumentParser(prog='fleece build',
                                      description='Simple Lambda builder.')
+    parser.add_argument('--python', '-py', type=str,
+                        default=None,
+                        help='Version of Python to use (27, 36, 37, 38)')
     parser.add_argument('--python36', '-3', action='store_true',
                         help='use Python 3.6 (default: Python 2.7)')
     parser.add_argument('--inject-build-info', action='store_true',
@@ -51,7 +54,10 @@ def parse_args(args):
     parser.add_argument('service_dir', type=str,
                         help=('directory where the service is located '
                               '(default: $pwd)'))
-    return parser.parse_args(args)
+    result = parser.parse_args(args)
+    if _get_python_version(result) is None:
+        sys.exit(1)
+    return result
 
 
 def get_version_hash():
@@ -137,8 +143,25 @@ def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):
     return container
 
 
+def _get_python_version(args):
+    if args.python is None:
+        if args.python36:
+            return 'python36'
+        return 'python27'
+    else:
+        if args.python36:
+            print("Error: --python36 and --python cannot be used together.")
+            return None
+        # Accomodate people who want to put a single dot in there.
+        version = args.python.replace('.', '', 1)
+        if version not in ["27", "36", "37", "38"]:
+            print('Unrecognized Python version "{}"'.format(args.python))
+            return None
+        return 'python' + version
+
+
 def build(args):
-    python_version = 'python36' if args.python36 else 'python27'
+    python_version = _get_python_version(args)
     inject_build_info = args.inject_build_info
     service_dir = os.path.abspath(args.service_dir)
     service_name = os.path.basename(service_dir)

@@ -2,17 +2,18 @@
 from __future__ import print_function
 
 import argparse
-from datetime import datetime
 import hashlib
-from io import BytesIO
 import os
 import subprocess
 import sys
 import tarfile
 import tempfile
+from datetime import datetime
+from io import BytesIO
 
 import docker
 from docker import errors
+
 
 build_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -141,6 +142,7 @@ def create_volume_container(image='alpine:3.4', command='/bin/true', **kwargs):
     )
     return container
 
+
 def _get_python_version(args):
     if args.python is None:
         if args.python36:
@@ -156,6 +158,7 @@ def _get_python_version(args):
             print('Unrecognized Python version "{}"'.format(args.python))
             return None
         return 'python' + version
+
 
 def build(args):
     python_version = _get_python_version(args)

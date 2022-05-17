@@ -62,7 +62,6 @@ structlog     = "^15.3.0"
 requests      = "^2.9.1"
 boto3         = "^1.0.0"
 wrapt         = "^1.10.10"
-PyFlakes      = "^1.4.0"
 
 [tool.poetry.dev-dependencies]
 coverage      = "^4.0.3"

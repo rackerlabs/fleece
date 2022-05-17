@@ -66,7 +66,7 @@ wrapt         = "^1.10.10"
 [tool.poetry.dev-dependencies]
 coverage      = "^4.0.3"
 flake8        = "^2.5.1"
-mock          = "^1.3.0"
+mock          = "1.0.1"
 nose          = "^1.3.7"
 pylint        = "^1.5.4"
 docker        = "^3.5.1"

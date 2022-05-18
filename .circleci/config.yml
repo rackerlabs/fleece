@@ -30,7 +30,7 @@ jobs:
       - run:
           name: Install Python build dependencies
           command: |
-            poetry install
+            poetry install --only testci
       - run:
           name: Run tests
           command: |

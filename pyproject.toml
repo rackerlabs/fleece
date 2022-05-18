@@ -62,6 +62,7 @@ structlog     = "^20.1.0"
 requests      = "^2.9.1"
 boto3         = "^1.0.0"
 wrapt         = "^1.10.10"
+click         = "8.0.1"
 
 [tool.poetry.dev-dependencies]
 coverage      = "^4.0.3"

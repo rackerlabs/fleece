@@ -31,6 +31,7 @@ jobs:
           name: Install Python build dependencies
           command: |
             pip install poetry==1.2.0a2
+            pip install virtualenv==20.7.2
             poetry install --only testci
       - run:
           name: Run tests

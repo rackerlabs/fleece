@@ -87,15 +87,10 @@ optional = true
 
 [tool.poetry.group.testci.dependencies]
 python    = "^3.6"
-# connecxion
-connexion     = { version = "^1.1.9", optional = true }
-Flask         = { version = "^1.1.1", optional = true }
+
 # cli
-docker        = { version = "^3.5.1", optional = true }
 PyYAML        = { version = "5.4", optional = true }
-"ruamel.yaml" = { version = "^0.15.34", optional = true }
 # wsgi and connecxion
-Werkzeug      = { version = "^0.15.5", optional = true }
 structlog     = "^20.1.0"
 requests      = "^2.9.1"
 boto3         = "^1.0.0"

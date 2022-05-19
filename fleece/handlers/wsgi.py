@@ -3,7 +3,7 @@ from werkzeug.test import EnvironBuilder
 
 def build_wsgi_environ_from_event(event):
     """Create a WSGI environment from the proxy integration event."""
-    params = event.get("queryStringParameters")
+    params = event.get("multiValueQueryStringParameters")
     environ = EnvironBuilder(
         method=event.get("httpMethod") or "GET",
         path=event.get("path") or "/",

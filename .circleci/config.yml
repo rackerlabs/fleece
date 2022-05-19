@@ -30,6 +30,7 @@ jobs:
       - run:
           name: Install Python build dependencies
           command: |
+            pip install poetry==1.2.0a2
             poetry install --only testci
       - run:
           name: Run tests

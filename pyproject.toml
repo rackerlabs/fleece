@@ -113,6 +113,7 @@ bandit        = "^1.6.2"
 "ruamel.yaml" = "^0.15.34"
 Flask         = "^1.1.1"
 connexion     = "^1.1.9"
+virtualenv    = "20.7.2"
 
 [tool.taskipy.tasks]
 pytest = "pytest --junitxml=test-results/junit.xml"

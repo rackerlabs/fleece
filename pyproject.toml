@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fleece"
-version = "1.1.1"
+version = "1.1.2"
 description = "Wrap the lamb...da"
 license = "Apache-2.0"
 readme = "README.md"
@@ -101,6 +101,6 @@ ci = "task pytest && task black_ci && task flake8 && task safety && task bandit 
 force_single_line = true
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["poetry-core>=1.0.8"]
+build-backend = "poetry.core.masonry.api"
 

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fleece"
-version = "1.1.0"
+version = "1.2.0"
 description = "Wrap the lamb...da"
 license = "Apache-2.0"
 readme = "README.md"
@@ -17,6 +17,7 @@ classifiers = [
     'Programming Language :: Python :: 3.6',
     'Programming Language :: Python :: 3.7',
     'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.10',
 ]
 
 authors = ["Bruce Stringer <bruce.stringer@rackspace.com>", "Ryan Walker <ryan.walker@rackspace.com>", "Szilveszter Farkas <szilveszter.farkas@rackspace.com>","Tim Simpson <tim.simpson@rackspace.com>"]

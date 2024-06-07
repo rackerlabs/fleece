@@ -22,7 +22,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(prog='fleece build',
                                      description='Simple Lambda builder.')
     parser.add_argument('--python', '-py', type=str, default=None,
-                        help='Version of Python to use (27, 36, 37, 38)')
+                        help='Version of Python to use (27, 36, 37, 38, 310)')
     parser.add_argument('--python36', '-3', action='store_true',
                         help='use Python 3.6 (default: Python 2.7)')
     parser.add_argument('--inject-build-info', action='store_true',
@@ -154,7 +154,7 @@ def _get_python_version(args):
             return None
         # Accomodate people who want to put a single dot in there.
         version = args.python.replace('.', '', 1)
-        if version not in ["27", "36", "37", "38"]:
+        if version not in ["27", "36", "37", "38", "310"]:
             print('Unrecognized Python version "{}"'.format(args.python))
             return None
         return 'python' + version

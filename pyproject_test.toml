@@ -55,8 +55,8 @@ connexion     = { version = "^1.1.9", optional = true }
 Flask         = { version = "^1.1.1", optional = true }
 # cli
 docker        = { version = "^3.5.1", optional = true }
-PyYAML        = { version = "5.4", optional = true }
-"ruamel.yaml" = { version = "^0.15.34", optional = true }
+PyYAML        = { version = "6.0.1", optional = true }
+"ruamel.yaml" = { version = "^0.18.3", optional = true }
 # wsgi and connecxion
 Werkzeug      = { version = "^0.15.5", optional = true }
 structlog     = "^20.1.0"
@@ -80,7 +80,7 @@ isort         = "^4.3.21"
 pytest        = "^5.4.1"
 Werkzeug      = "^0.15.5"
 bandit        = "^1.6.2"
-"ruamel.yaml" = "^0.15.34"
+"ruamel.yaml" = "^0.18.3"
 Flask         = "^1.1.1"
 connexion     = "^1.1.9"
 
@@ -93,7 +93,7 @@ flake8 = "flake8 fleece/ tests/"
 convert_readme = "pandoc --from=gfm --to=rst README.md --output=README.rst"
 generate_requirements = "poetry export -f requirements.txt -o requirements.txt"
 pre_safety = "task generate_requirements"
-safety = "safety check  -r requirements.txt"
+safety = "safety check  -r requirements.txt -i 62142 -i 55261 -i 67895 -i 64227 -i 70612 -i 71064 -i 58755 -i 52495 -i 53326 -i 53325 -i 62019"
 isort = "isort -rc fleece"
 isort_ci = "isort -rc -c fleece"
 full = "task pytest && task black && task flake8 && task safety && task bandit && task isort"

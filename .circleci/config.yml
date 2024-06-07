@@ -52,4 +52,4 @@ workflows:
       - test:
           matrix:
             parameters:
-              python_version_tag: ["3.6", "3.7", "3.8"]
+              python_version_tag: ["3.10"]

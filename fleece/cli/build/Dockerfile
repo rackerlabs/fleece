@@ -1,13 +1,12 @@
 FROM amazonlinux:2
 
-ARG python_version=python36
-ARG deps
+ARG python_version=python310
 
 RUN echo 'exclude=filesystem' >> /etc/yum.conf
 RUN if [ "${python_version}" == "python310" ]; then \
      yum groupinstall "Development Tools" -y; \
      yum erase openssl-devel -y; \
-     yum install openssl11 openssl11-devel bzip2-devel wget zip ${deps} -y; \
+     yum install openssl11 openssl11-devel bzip2-devel wget zip gcc libffi-devel -y; \
      wget https://www.python.org/ftp/python/3.10.14/Python-3.10.14.tgz; \
      tar -xf Python-3.10.14.tgz; \
      cd Python-3.10.14/; \
@@ -15,7 +14,7 @@ RUN if [ "${python_version}" == "python310" ]; then \
      make altinstall; \
      python3.10 --version; \
      ln -s /usr/local/bin/python3.10 /usr/local/bin/python3; \
-    else yum -y update && yum install -y ${python_version} zip ${deps}; \
+    else yum -y update && yum install -y ${python_version} zip gcc libffi-devel; \
     fi
 
 RUN if [[ "${python_version}" == "python36" ]]; then \
@@ -25,6 +24,3 @@ RUN if [[ "${python_version}" == "python36" ]]; then \
 RUN python3 get-pip.py --prefix=/usr/local/
 
 ENV python_version $python_version
-
-COPY docker_build_lambda.sh /
-CMD /docker_build_lambda.sh
